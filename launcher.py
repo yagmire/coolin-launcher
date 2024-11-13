@@ -1,5 +1,13 @@
 import pygame, os ,sys, subprocess
-from pymsgbox import *
+from pymsgbox import alert
+from time import sleep
+
+versions = {
+    "3": "latest",
+    "16": "latest",
+    "coolin": "latest"
+}
+
 
 def resource_path(relative_path):
     try:
@@ -11,6 +19,15 @@ def resource_path(relative_path):
 GZDOOM_EXEC = resource_path("gzdoom/gzdoom.exe")
 
 pygame.init()
+pygame.mixer.init()
+
+#music
+play = pygame.mixer.Sound(resource_path("assets\\sounds\\play.wav"))
+error = pygame.mixer.Sound(resource_path("assets\\sounds\\error.wav"))
+select = pygame.mixer.Sound(resource_path("assets\\sounds\\select.wav"))
+
+music = pygame.mixer.music.load(resource_path("assets\\sounds\\sonic.wav"))
+pygame.mixer.music.play(-1)
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -19,22 +36,22 @@ pygame.display.set_caption("Coolin Launcher")
 # Colors
 WHITE = (255, 255, 255)
 
-background_image = pygame.image.load("assets/bg.png").convert()
+background_image = pygame.image.load(resource_path("assets/bg.png")).convert()
 background_width, background_height = background_image.get_width(), background_image.get_height()
 
 game_titles = [
-    "Coolin 16",
     "Coolin",
+    "Coolin 16",
     "Coolin 3"
 ]
 
 banner_images = [
-    pygame.image.load("assets/banners/16-drop.png").convert_alpha(),
     pygame.image.load("assets/banners/og-drop.png").convert_alpha(),
+    pygame.image.load("assets/banners/16-drop.png").convert_alpha(),
     pygame.image.load("assets/banners/3-drop.png").convert_alpha()
 ]
 
-center_image = pygame.image.load("assets/select.png").convert_alpha()
+center_image = pygame.image.load(resource_path("assets/select.png")).convert_alpha()
 center_image_width, center_image_height = center_image.get_width(), center_image.get_height()-50
 
 # Banner size (359x478)
@@ -63,22 +80,29 @@ while running:
             running = False
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RIGHT:
+                pygame.mixer.Sound.play(select)
                 if selected_game < num_games - 1:
                     selected_game += 1
                     target_offset -= SCREEN_WIDTH // 2 
             elif event.key == pygame.K_LEFT:
+                pygame.mixer.Sound.play(select)
                 if selected_game > 0:
                     selected_game -= 1
                     target_offset += SCREEN_WIDTH // 2  
             elif event.key == pygame.K_RETURN:
                 print(f"Launching: {game_titles[selected_game]}...")
                 if game_titles[selected_game] == "Coolin 16":
+                    pygame.mixer.Sound.play(play)
+                    sleep(0.3)
                     subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/16")])
                     running = False
                 elif game_titles[selected_game] == "Coolin":
+                    pygame.mixer.Sound.play(play)
+                    sleep(0.3)
                     subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/coolin/Coolin.wad")])
                     running = False
                 elif game_titles[selected_game] == "Coolin 3":
+                    pygame.mixer.Sound.play(error)
                     alert(text="Coolin 3 is still in development", title="Coolin 3", button="Ok")
                     break
                     subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/3")])
