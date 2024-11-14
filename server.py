@@ -3,7 +3,7 @@ import os
 
 app = Flask(__name__)
 
-BASE_DIRECTORY = "/dingo"
+BASE_DIRECTORY = "C:\\Users\\matthewkelley\\Desktop\\coolin-launcher\\dingo"
 
 @app.route('/download')
 def download_file():
@@ -14,6 +14,7 @@ def download_file():
         return abort(400, "Missing 'game' or 'version' parameter")
 
     file_path = os.path.join(BASE_DIRECTORY, game, version, f"{game}.zip")
+    print(file_path)
    
     if not os.path.isfile(file_path):
         return abort(404, "File not found")
