@@ -1,4 +1,4 @@
-import pygame, os ,sys, subprocess
+import pygame, os ,sys, subprocess, requests
 from pymsgbox import alert
 from time import sleep
 
@@ -8,6 +8,16 @@ versions = {
     "coolin": "latest"
 }
 
+server = "http://localhost:2665/download"
+params= {
+    'game': '16',
+    'version': 'latest'
+}
+
+get_ltst = requests.get(server, params=params)
+if get_ltst.status_code = 200:
+    with open('16.zip', "wb") as dl:
+        dl.write(get_ltst.content)
 
 def resource_path(relative_path):
     try:
