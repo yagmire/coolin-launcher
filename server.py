@@ -27,6 +27,9 @@ def download_file():
     if game not in os.listdir(BASE_DIRECTORY):
         return abort(404, "Game not found")
 
+    if version not in os.listdir(os.path.join(BASE_DIRECTORY, game)):
+        return abort(404, "Version not found")
+
     file_path = os.path.join(BASE_DIRECTORY, game, version, f"{game}.zip")
     print(file_path)
    
