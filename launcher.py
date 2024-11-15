@@ -113,10 +113,12 @@ clock = pygame.time.Clock()
 running = True
 
 VERSION = "latest"
+KEY_ENROLLMENT = False
 def get_version():
-    global VERSION, loading
+    global VERSION, loading, KEY_ENROLLMENT
     if get_beta_key_validity():
         VERSION = "beta"
+        KEY_ENROLLMENT = True
     else:
         VERSION = "latest"
     loading = False
@@ -191,7 +193,13 @@ for game in params['game']:
         threading.Thread(target=download_assets).start()
         break
     elif not is_folder_empty(f"{os.getcwd()}\\coolin\\{game}"):
-        if os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\latest.lock") and VERSION != "latest":
+        if os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\latest.lock") and VERSION == "latest":
+            downloaded = True
+            break
+        elif os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\beta.lock") and VERSION == "beta":
+            downloaded = True
+            break
+        elif os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\latest.lock") and VERSION != "latest":
             downloaded = False
             threading.Thread(target=download_assets).start()
             break
@@ -324,6 +332,8 @@ while running:
         pygame.draw.rect(screen, WHITE, (250, 150, 300, 200))
         pygame.draw.rect(screen, BLACK, (250, 150, 300, 200), 2)
         screen.blit(large_font.render("Enter Beta Key", True, BLACK), (300, 170))
+
+        screen.blit(font.render(f"Branch: {VERSION}", True, BLACK), (300, 300))
 
         # Draw input box
         txt_surface = large_font.render(beta_key, True, BLACK)

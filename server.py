@@ -2,7 +2,7 @@ from flask import Flask, request, send_file, abort
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-import os, hashlib
+import os, hashlib, sys
 app = Flask(__name__)
 """
 limiter = Limiter(
@@ -17,7 +17,7 @@ limiter = Limiter(
 def get_beta_key():
     # Define the URL and parameters
     hasher = hashlib.sha512()
-    if os.path.isfile("dingo\\betakey"):
+    if os.path.isfile("C:\\Users\\matthewkelley\\Desktop\\coolin-launcher\\dingo\\betakey"):
         with open('dingo\\betakey', 'rb') as file:
             while True:
                 chunk = file.read(4096)  # Read file in chunks
@@ -30,6 +30,7 @@ def get_beta_key():
 
 BASE_DIRECTORY = "C:\\Users\\matthewkelley\\Desktop\\coolin-launcher\\dingo"
 BETA_KEY = get_beta_key()
+print(BETA_KEY, file=sys.stdout)
 @app.route('/download')
 def download_file():
     game = request.args.get('game')
@@ -53,6 +54,7 @@ def download_file():
     return send_file(file_path, as_attachment=True)
 @app.route("/betakey")
 def check_beta_key_validity():
+    
     if request.args.get("key") == BETA_KEY:
         return "Valid"
     else:
