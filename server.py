@@ -1,5 +1,14 @@
 from flask import Flask, request, send_file, abort
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 import os, hashlib
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["20 per day", "6 per hour"],
+    storage_uri="memory://",
+)
 
 app = Flask(__name__)
 
