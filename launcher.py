@@ -4,7 +4,7 @@ from time import sleep
 from sys import exit
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
 
-# OS RESOURCES (existing code unchanged)
+# OS RESOURCES 
 
 def check_internet_conn():
     http = urllib3.PoolManager(timeout=3.0)
@@ -17,7 +17,6 @@ def check_internet_conn():
         return False
 
 def get_beta_key_validity():
-    # Define the URL and parameters
     if os.path.isfile(resource_path("betakey")):
         hasher = hashlib.sha512()
         with open('betakey', 'rb') as file:
