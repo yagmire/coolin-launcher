@@ -122,25 +122,33 @@ def get_version():
 downloaded = False
 def download_assets():
     global downloaded
-    print(f"downloading {params['game']} {params['version']} assets...")
-    print(VERSION)
-    response = requests.get(server_url, params=params, stream=True)
-    if response.status_code != 200:
-        print(f"Failed to download file. Status code: {response.status_code}")
-        alert(text=f"Failed to download file. Status code: {response.status_code}", title="Error", button="Ok")
-        downloaded = True
-        return
-    downloaded_size = 0
-    with open(save_path, 'wb') as file:
-        for data in response.iter_content(chunk_size=1024):
-            if data:
-                file.write(data)
-                downloaded_size += len(data)
-    zipfile.ZipFile(save_path, 'r').extractall(f"{os.getcwd()}\\coolin\\{params['game']}")
-    downloaded = True
-    print(f"Downloaded and unzipped {downloaded_size} bytes")
-    os.remove(save_path)
+    print("Downloading assets...")
+    for game in params['game']:
+        save_path = f"{os.getcwd()}\\coolin\\{game}\\{game}.zip"
+        print(f"Downloading {game} {params['version']} assets...")
+        print(VERSION)
+        temp_params = {
+            'game': game,
+            'version': VERSION
+        }
+        response = requests.get(server_url, params=temp_params, stream=True)
+        if response.status_code != 200:
+            print(f"Failed to download file. Status code: {response.status_code}")
+            alert(text=f"Failed to download file. Status code: {response.status_code}", title="Error", button="Ok")
+            downloaded = True
+            return
+        downloaded_size = 0
+        with open(save_path, 'wb') as file:
+            for data in response.iter_content(chunk_size=1024):
+                if data:
+                    file.write(data)
+                    downloaded_size += len(data)
+        zipfile.ZipFile(save_path, 'r').extractall(f"{os.getcwd()}\\coolin\\{game}")
+        print(f"Downloaded and unzipped {downloaded_size} bytes for {game}")
+        os.remove(save_path)
     pygame.mixer.Sound.play(success)
+    downloaded = True
+
 
 
 loading_text = font.render("Loading...", True, (255,255,255))
@@ -162,17 +170,19 @@ while loading:
         version_got = True
     
 server_url = "http://localhost:2665/download"
+
 params = {
-    'game': '16',
+    'game': ["16", "coolin"],
     'version': VERSION
 }
-save_path = f"{os.getcwd()}\\coolin\\{params['game']}\\{params['game']}.zip"
 
-if is_folder_empty(f"{os.getcwd()}\\coolin\\{params['game']}") and loading == False:
-    downloaded = False
-    threading.Thread(target=download_assets).start()
-else:
-    downloaded = True
+for game in params['game']:
+    if is_folder_empty(f"{os.getcwd()}\\coolin\\{game}"):
+        downloaded = False
+        threading.Thread(target=download_assets).start()
+        break
+    else:
+        downloaded = True
 
 while downloaded == False and loading == False:
     for event in pygame.event.get():
