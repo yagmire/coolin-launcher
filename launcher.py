@@ -1,4 +1,4 @@
-import pygame, os, sys, subprocess, requests, threading, zipfile, hashlib, urllib3
+import pygame, os, sys, subprocess, requests, threading, zipfile, hashlib, urllib3, shutil
 from pymsgbox import alert
 from time import sleep
 from sys import exit
@@ -18,23 +18,26 @@ def check_internet_conn():
 
 def get_beta_key_validity():
     # Define the URL and parameters
-    hasher = hashlib.sha512()
-    with open('betakey', 'rb') as file:
-        while True:
-            chunk = file.read(4096)
-            if not chunk:
-                break
-            hasher.update(chunk)
-    server_url = "http://localhost:2665/betakey"
-    params = {
-        'key': hasher.hexdigest()
-    }
-    response = requests.get(server_url, params=params)
-    if response.text == "Valid":
-        print("Beta key is valid")
-        return True
+    if os.path.isfile(resource_path("betakey")):
+        hasher = hashlib.sha512()
+        with open('betakey', 'rb') as file:
+            while True:
+                chunk = file.read(4096)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        server_url = "http://localhost:2665/betakey"
+        params = {
+            'key': hasher.hexdigest()
+        }
+        response = requests.get(server_url, params=params)
+        if response.text == "Valid":
+            print("Beta key is valid")
+            return True
+        else:
+            print("Beta key is invalid")
+            return False
     else:
-        print("Beta key is invalid")
         return False
 
 def resource_path(relative_path):
@@ -124,6 +127,8 @@ def download_assets():
     global downloaded
     print("Downloading assets...")
     for game in params['game']:
+        shutil.rmtree(f"{os.getcwd()}\\coolin\\{game}")
+        os.mkdir(f"{os.getcwd()}\\coolin\\{game}")
         save_path = f"{os.getcwd()}\\coolin\\{game}\\{game}.zip"
         print(f"Downloading {game} {params['version']} assets...")
         print(VERSION)
@@ -132,7 +137,11 @@ def download_assets():
             'version': VERSION
         }
         response = requests.get(server_url, params=temp_params, stream=True)
-        if response.status_code != 200:
+        if response.status_code == 404:
+            temp_params['version'] = "latest"
+            print(temp_params)
+            response = requests.get(server_url, params=temp_params, stream=True)
+        elif response.status_code != 200:
             print(f"Failed to download file. Status code: {response.status_code}")
             alert(text=f"Failed to download file. Status code: {response.status_code}", title="Error", button="Ok")
             downloaded = True
@@ -146,6 +155,7 @@ def download_assets():
         zipfile.ZipFile(save_path, 'r').extractall(f"{os.getcwd()}\\coolin\\{game}")
         print(f"Downloaded and unzipped {downloaded_size} bytes for {game}")
         os.remove(save_path)
+        open(f'{os.getcwd()}\\coolin\\{game}\\{VERSION}.lock', 'a')
     pygame.mixer.Sound.play(success)
     downloaded = True
 
@@ -181,6 +191,15 @@ for game in params['game']:
         downloaded = False
         threading.Thread(target=download_assets).start()
         break
+    elif not is_folder_empty(f"{os.getcwd()}\\coolin\\{game}"):
+        if os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\latest.lock") and VERSION != "latest":
+            downloaded = False
+            threading.Thread(target=download_assets).start()
+            break
+        elif os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\beta.lock") and VERSION != "beta":
+            downloaded = False
+            threading.Thread(target=download_assets).start()
+            break
     else:
         downloaded = True
 
