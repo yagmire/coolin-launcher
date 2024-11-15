@@ -43,6 +43,10 @@ def check_beta_key_validity():
         return "Valid"
     else:
         return "Invalid"
-
+        
+@app.route('upload')
+def upload():
+    return 'Upload test'
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=2665)
