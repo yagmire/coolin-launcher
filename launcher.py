@@ -1,6 +1,7 @@
 import pygame, os, sys, subprocess, requests, threading, zipfile, hashlib, urllib3
 from pymsgbox import alert
 from time import sleep
+from sys import exit
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
 
 # OS RESOURCES (existing code unchanged)
@@ -60,6 +61,7 @@ pygame.mixer.init()
 play = pygame.mixer.Sound(resource_path("assets\\sounds\\play.wav"))
 error = pygame.mixer.Sound(resource_path("assets\\sounds\\error.wav"))
 select = pygame.mixer.Sound(resource_path("assets\\sounds\\select.wav"))
+success = pygame.mixer.Sound(resource_path("assets\\sounds\\success.wav"))
 music = pygame.mixer.music.load(resource_path("assets\\sounds\\sonic.wav"))
 
 select.set_volume(0.4)
@@ -110,26 +112,18 @@ running = True
 
 VERSION = "latest"
 def get_version():
-    global loading
+    global VERSION, loading
     if get_beta_key_validity():
-        global VERSION
         VERSION = "beta"
-        loading = False
     else:
-        loading = False
-threading.Thread(target=get_version).start()
-
-# File download settings
-server_url = "http://localhost:2665/download"
-params = {
-    'game': '16',
-    'version': VERSION
-}
-save_path = f"{os.getcwd()}\\coolin\\{params['game']}\\{params['game']}.zip"
+        VERSION = "latest"
+    loading = False
 
 downloaded = False
 def download_assets():
     global downloaded
+    print(f"downloading {params['game']} {params['version']} assets...")
+    print(VERSION)
     response = requests.get(server_url, params=params, stream=True)
     if response.status_code != 200:
         print(f"Failed to download file. Status code: {response.status_code}")
@@ -146,10 +140,12 @@ def download_assets():
     downloaded = True
     print(f"Downloaded and unzipped {downloaded_size} bytes")
     os.remove(save_path)
+    pygame.mixer.Sound.play(success)
 
 
 loading_text = font.render("Loading...", True, (255,255,255))
 loading = True
+version_got = False
 while loading:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -158,12 +154,35 @@ while loading:
     screen.blit(credit_text, (10, SCREEN_HEIGHT - credit_text.get_height() - 10))
     pygame.display.flip()
     clock.tick(60)
+    if INTERNET_PRESENT == False:
+        alert(text="This app requires an active internet connection.", title="Error", button="Ok")
+        exit()
+    if not version_got:
+        get_version()
+        version_got = True
+    
+server_url = "http://localhost:2665/download"
+params = {
+    'game': '16',
+    'version': VERSION
+}
+save_path = f"{os.getcwd()}\\coolin\\{params['game']}\\{params['game']}.zip"
 
-if is_folder_empty(f"{os.getcwd()}\\coolin\\{params['game']}"):
+if is_folder_empty(f"{os.getcwd()}\\coolin\\{params['game']}") and loading == False:
     downloaded = False
     threading.Thread(target=download_assets).start()
 else:
     downloaded = True
+
+while downloaded == False and loading == False:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+    screen.blit(downloading_assets, (0,0))
+    screen.blit(credit_text, (10, SCREEN_HEIGHT - credit_text.get_height() - 10))
+    pygame.display.flip()
+    # 60 FPS
+    clock.tick(60)
 
 # New: Settings Button and Menu
 settings_button = pygame.Rect(SCREEN_WIDTH - 80, SCREEN_HEIGHT - 40, 70, 30)
@@ -232,6 +251,7 @@ while running:
         elif event.type == pygame.KEYDOWN and active:
             if event.key == pygame.K_RETURN:
                 save_beta_key(beta_key)
+                pygame.mixer.Sound.play(success)
                 beta_key = ""
             elif event.key == pygame.K_BACKSPACE:
                 beta_key = beta_key[:-1]
