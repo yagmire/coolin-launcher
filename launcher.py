@@ -202,7 +202,11 @@ color_inactive = GRAY
 color_active = BLUE
 color = color_inactive
 active = False
-beta_key = ""
+
+if os.path.isfile(resource_path("betakey")):
+    beta_key = open('betakey', 'r').read()
+else:
+    beta_key = ""
 
 def save_beta_key(key):
     with open("betakey", "w") as file:
@@ -262,7 +266,11 @@ while running:
             if event.key == pygame.K_RETURN:
                 save_beta_key(beta_key)
                 pygame.mixer.Sound.play(success)
-                beta_key = ""
+                if os.path.isfile(resource_path("betakey")):
+                    beta_key = open('betakey', 'r').read()
+                else:
+                    beta_key = ""
+
             elif event.key == pygame.K_BACKSPACE:
                 beta_key = beta_key[:-1]
             else:
