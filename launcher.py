@@ -3,6 +3,7 @@ from pymsgbox import alert
 from time import sleep
 from sys import exit
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
+SERVER = "http://localhost:2665/"
 
 # OS RESOURCES 
 
@@ -16,6 +17,7 @@ def get_biggest_number_folder(path):
 def get_gzdoom():
     if os.path.exists(GZDOOM_EXEC):
         print("GZDOOM is already installed.")
+        return
     repo_url = "https://api.github.com/repos/ZDoom/gzdoom/releases/latest"
     headers = {
         "Accept": "application/vnd.github.v3+json",
@@ -96,7 +98,7 @@ def get_beta_key_validity():
                 if not chunk:
                     break
                 hasher.update(chunk)
-        server_url = "http://localhost:2665/betakey"
+        server_url = f"{SERVER}betakey"
         params = {
             'key': hasher.hexdigest()
         }
@@ -229,7 +231,7 @@ def download_assets():
         os.remove(save_path)
         open(f'{os.getcwd()}\\coolin\\{game}\\{VERSION}.lock', 'a')
         
-        latest_version = requests.get("http://localhost:2665/get_latest_ver", params={'game': game, 'branch': f'{VERSION}'}).text
+        latest_version = requests.get(f"{SERVER}get_latest_ver", params={'game': game, 'branch': f'{VERSION}'}).text
         open(f'{os.getcwd()}\\coolin\\{game}\\{VERSION}.lock', 'w').write(latest_version)
         
     get_gzdoom()
@@ -254,7 +256,7 @@ while loading:
         get_version()
         version_got = True
     
-server_url = "http://localhost:2665/download"
+server_url = f"{SERVER}download"
 
 params = {
     'game': ["16", "coolin"],
