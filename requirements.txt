@@ -6,3 +6,4 @@ tqdm
 # Server
 Flask
 Flask-Limiter
+flask_httpauth

@@ -1,10 +1,74 @@
-import pygame, os, sys, subprocess, requests, threading, zipfile, hashlib, urllib3, shutil
+import pygame, os, sys, subprocess, requests, threading, zipfile, hashlib, urllib3, shutil, re, glob
 from pymsgbox import alert
 from time import sleep
 from sys import exit
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
 
 # OS RESOURCES 
+
+def get_gzdoom():
+    if os.path.exists(GZDOOM_EXEC):
+        print("GZDOOM is already installed.")
+    repo_url = "https://api.github.com/repos/ZDoom/gzdoom/releases/latest"
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+    try:
+        # Fetch the latest release information
+        response = requests.get(repo_url, headers=headers)
+        response.raise_for_status()
+        release_data = response.json()
+
+        # Find the desired asset
+        assets = release_data.get("assets", [])
+        pattern = re.compile(r"gzdoom-.*-windows\.zip")
+        download_url = None
+
+        for asset in assets:
+            if pattern.match(asset["name"]):
+                download_url = asset["browser_download_url"]
+                break
+
+        if not download_url:
+            print("No matching GZDoom release found.")
+            return
+
+        # Download the file
+        file_name = download_url.split("/")[-1]
+        print(f"Downloading {file_name} from {download_url}...")
+
+        with requests.get(download_url, stream=True) as download_response:
+            download_response.raise_for_status()
+            with open(file_name, "wb") as file:
+                for chunk in download_response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+
+        print(f"Downloaded {file_name} successfully!")
+        for file in glob.glob("gzdoom-*-windows.zip"):
+            GZDOOM_ZIP = file
+        print(GZDOOM_ZIP)
+        with zipfile.ZipFile(resource_path(GZDOOM_ZIP), 'r') as zip_ref:
+            zip_ref.extractall(resource_path("gzdoom"))
+        
+        os.remove(GZDOOM_ZIP)
+
+        doom2_wad_url = "https://raw.githubusercontent.com/Akbar30Bill/DOOM_wads/refs/heads/master/doom2.wad"
+        
+        response = requests.get(doom2_wad_url, stream=True)
+        save_path = resource_path("gzdoom\\doom2.wad")
+        if response.status_code == 200:
+            with open(resource_path("gzdoom\\doom2.wad"), "wb") as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+            print(f"File downloaded successfully to {save_path}")
+        else:
+            print(f"Failed to download file. Status code: {response.status_code}")
+
+
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
+
 
 def check_internet_conn():
     http = urllib3.PoolManager(timeout=3.0)
@@ -157,6 +221,7 @@ def download_assets():
         print(f"Downloaded and unzipped {downloaded_size} bytes for {game}")
         os.remove(save_path)
         open(f'{os.getcwd()}\\coolin\\{game}\\{VERSION}.lock', 'a')
+    get_gzdoom()
     pygame.mixer.Sound.play(success)
     downloaded = True
 
