@@ -6,6 +6,13 @@ SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
 
 # OS RESOURCES 
 
+def get_biggest_number_folder(path):
+    folders = [f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
+    folders = [f for f in folders if f.isdigit()]  # Filter for folders that are numbers
+    if not folders:
+        return None
+    return max(folders, key=int)
+
 def get_gzdoom():
     if os.path.exists(GZDOOM_EXEC):
         print("GZDOOM is already installed.")
@@ -176,7 +183,7 @@ beta_text = font.render("BETA MODE", True, (255,0,0))
 clock = pygame.time.Clock()
 running = True
 
-VERSION = "latest"
+VERSION = "stable"
 KEY_ENROLLMENT = False
 def get_version():
     global VERSION, loading, KEY_ENROLLMENT
@@ -184,7 +191,7 @@ def get_version():
         VERSION = "beta"
         KEY_ENROLLMENT = True
     else:
-        VERSION = "latest"
+        VERSION = "stable"
     loading = False
 
 downloaded = False
@@ -203,7 +210,7 @@ def download_assets():
         }
         response = requests.get(server_url, params=temp_params, stream=True)
         if response.status_code == 404:
-            temp_params['version'] = "latest"
+            temp_params['version'] = "stable"
             print(temp_params)
             response = requests.get(server_url, params=temp_params, stream=True)
         elif response.status_code != 200:
@@ -221,11 +228,13 @@ def download_assets():
         print(f"Downloaded and unzipped {downloaded_size} bytes for {game}")
         os.remove(save_path)
         open(f'{os.getcwd()}\\coolin\\{game}\\{VERSION}.lock', 'a')
+        
+        latest_version = requests.get("http://localhost:2665/get_latest_ver", params={'game': game, 'branch': f'{VERSION}'}).text
+        open(f'{os.getcwd()}\\coolin\\{game}\\{VERSION}.lock', 'w').write(latest_version)
+        
     get_gzdoom()
     pygame.mixer.Sound.play(success)
     downloaded = True
-
-
 
 loading_text = font.render("Loading...", True, (255,255,255))
 loading = True
@@ -258,13 +267,13 @@ for game in params['game']:
         threading.Thread(target=download_assets).start()
         break
     elif not is_folder_empty(f"{os.getcwd()}\\coolin\\{game}"):
-        if os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\latest.lock") and VERSION == "latest":
+        if os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\stable.lock") and VERSION == "stable":
             downloaded = True
             break
         elif os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\beta.lock") and VERSION == "beta":
             downloaded = True
             break
-        elif os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\latest.lock") and VERSION != "latest":
+        elif os.path.isfile(f"{os.getcwd()}\\coolin\\{game}\\stable.lock") and VERSION != "stable":
             downloaded = False
             threading.Thread(target=download_assets).start()
             break
