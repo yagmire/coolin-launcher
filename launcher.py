@@ -211,6 +211,9 @@ pygame.mixer.music.play(-1)
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Coolin Launcher")
 
+pygame_icon = pygame.image.load(resource_path("assets\\rock.png")).convert_alpha()
+pygame.display.set_icon(pygame_icon)
+
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
