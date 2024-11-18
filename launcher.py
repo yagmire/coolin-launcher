@@ -436,6 +436,7 @@ while running:
                 if selected_game > 0:
                     selected_game -= 1
                     target_offset += SCREEN_WIDTH // 2  
+                
             elif event.key == pygame.K_RETURN:
                 print(f"Launching: {game_titles[selected_game]}...")
                 if game_titles[selected_game] == "Coolin 16":
