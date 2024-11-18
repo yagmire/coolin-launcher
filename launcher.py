@@ -3,7 +3,7 @@ from pymsgbox import alert
 from time import sleep
 from sys import exit
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
-SERVER = "http://localhost:2665/"
+SERVER = "http://154.53.44.231:2665/"
 
 # OS RESOURCES 
 
@@ -80,13 +80,16 @@ def get_gzdoom():
 
 
 def check_internet_conn():
-    http = urllib3.PoolManager(timeout=3.0)
-    r = http.request('GET', 'google.com', preload_content=False)
-    code = r.status
-    r.release_conn()
-    if code == 200:
-        return True
-    else:
+    try:
+        http = urllib3.PoolManager(timeout=3.0)
+        r = http.request('GET', 'google.com', preload_content=False)
+        code = r.status
+        r.release_conn()
+        if code == 200:
+            return True
+        else:
+            return False
+    except Exception:
         return False
 
 def get_beta_key_validity():
@@ -110,6 +113,69 @@ def get_beta_key_validity():
             print("Beta key is invalid")
             return False
     else:
+        return False
+
+def check_for_updates():
+    print("Checking for updates...")
+    server_url = f"{SERVER}get_latest_ver"
+    ver_16 = None
+    ver_coolin = None
+    latest_16 = None
+    latest_coolin = None
+    for game in params['game']:
+        temp_params = {
+            'game': game,
+            'branch': VERSION
+        }
+        response = requests.get(server_url, params=temp_params)
+        if response.status_code == 200:
+            if game == "16":
+                latest_16 = response.text
+            elif game == "coolin":
+                latest_coolin = response.text
+        else:
+            print("Failed to check for updates.")
+        if os.path.isfile(resource_path(f"coolin\\{game}\\stable.lock")) or os.path.isfile(f"coolin\\{game}\\beta.lock"):
+            if os.path.isfile(resource_path(f"coolin\\{game}\\stable.lock")):
+                install_ver = "stable"
+            else:
+                install_ver = "beta"
+            
+            if VERSION != install_ver: print("Reversion detected.")
+            if game == "16":
+                if os.path.isfile(resource_path(f"coolin\\{game}\\stable.lock")) and install_ver == "stable":
+                    ver_16 = open(resource_path(f"coolin\\{game}\\stable.lock"), "r").read()
+                elif os.path.isfile(f"coolin\\{game}\\beta.lock") and install_ver == "beta":
+                    ver_16 = open(f"coolin\\{game}\\beta.lock", "r").read()
+                elif os.path.isfile(resource_path(f"coolin\\{game}\\stable.lock")) and install_ver == "beta":
+                    print("Non-valid beta version. Using stable.")
+                    ver_16 = open(resource_path(f"coolin\\{game}\\stable.lock"), "r").read()
+                elif os.path.isfile(f"coolin\\{game}\\beta.lock") and install_ver == "stable":
+                    print("Non-valid stable version. Using beta.")
+                    ver_16 = open(f"coolin\\{game}\\beta.lock", "r").read()
+            elif game == "coolin":
+                if os.path.isfile(resource_path(f"coolin\\{game}\\stable.lock")) and install_ver == "stable":
+                    ver_coolin = open(resource_path(f"coolin\\{game}\\stable.lock"), "r").read()
+                elif os.path.isfile(f"coolin\\{game}\\beta.lock") and install_ver == "beta":
+                    ver_coolin = open(f"coolin\\{game}\\beta.lock", "r").read()
+                elif os.path.isfile(resource_path(f"coolin\\{game}\\stable.lock")) and install_ver == "beta":
+                    print("Non-valid beta version. Using stable.")
+                    ver_coolin = open(resource_path(f"coolin\\{game}\\stable.lock"), "r").read()
+                elif os.path.isfile(f"coolin\\{game}\\beta.lock") and install_ver == "stable":
+                    print("Non-valid stable version. Using beta.")
+                    ver_coolin = open(f"coolin\\{game}\\beta.lock", "r").read()
+        else:
+            if game == "16": ver_16 = "0"
+            if game == "coolin": ver_coolin = "0"
+    
+    # Debugger
+    print(f"Current 16 version: {ver_16} | Current coolin version: {ver_coolin} | Latest coolin version: {latest_coolin}, Latest 16 version: {latest_16}, Branch: {VERSION}, Internet: {INTERNET_PRESENT}") 
+    
+    if ver_16 < latest_16 or ver_coolin < latest_coolin:
+        print("A new version is available.")
+        return True
+    else:
+        print("No updates available.")
         return False
 
 def resource_path(relative_path):
@@ -238,9 +304,21 @@ def download_assets():
     pygame.mixer.Sound.play(success)
     downloaded = True
 
+
+server_url = f"{SERVER}download"
+
+params = {
+    'game': ["16", "coolin"],
+    'version': VERSION
+}
+
 loading_text = font.render("Loading...", True, (255,255,255))
 loading = True
 version_got = False
+checked_updates = False
+UPDATE_AVAILABLE = False
+checked_intro = False
+INTRO_PLAYED = False
 while loading:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -255,15 +333,22 @@ while loading:
     if not version_got:
         get_version()
         version_got = True
+    if not checked_updates:
+        UPDATE_AVAILABLE = check_for_updates()
+        checked_updates = True
+    if not checked_intro:
+        if not os.path.isfile(resource_path("intro.lock")):
+            INTRO_PLAYED = False
+        else:
+            INTRO_PLAYED = True
+        checked_intro = True
     
-server_url = f"{SERVER}download"
-
-params = {
-    'game': ["16", "coolin"],
-    'version': VERSION
-}
 
 for game in params['game']:
+    if UPDATE_AVAILABLE == True:
+        downloaded = False
+        threading.Thread(target=download_assets).start()
+        break
     if is_folder_empty(f"{os.getcwd()}\\coolin\\{game}"):
         downloaded = False
         threading.Thread(target=download_assets).start()
@@ -291,6 +376,21 @@ while downloaded == False and loading == False:
         if event.type == pygame.QUIT:
             running = False
     screen.blit(downloading_assets, (0,0))
+    screen.blit(credit_text, (10, SCREEN_HEIGHT - credit_text.get_height() - 10))
+    pygame.display.flip()
+    # 60 FPS
+    clock.tick(60)
+
+intro = pygame.image.load(resource_path("assets\\intro.png")).convert_alpha()
+
+while INTRO_PLAYED == False:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+            INTRO_PLAYED = True
+            open(resource_path("intro.lock"), 'a').close()
+    screen.blit(intro, (0,0))
     screen.blit(credit_text, (10, SCREEN_HEIGHT - credit_text.get_height() - 10))
     pygame.display.flip()
     # 60 FPS
@@ -370,6 +470,7 @@ while running:
                 pygame.mixer.Sound.play(success)
                 if os.path.isfile(resource_path("betakey")):
                     beta_key = open('betakey', 'r').read()
+                    alert(text="If the beta key is valid, you must restart in order to download the beta.", title="Success", button="Ok")
                 else:
                     beta_key = ""
 

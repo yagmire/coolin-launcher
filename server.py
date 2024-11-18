@@ -11,12 +11,11 @@ auth = HTTPBasicAuth()
 
 
 users = {
-    "admin": "password123", 
     "dingo": "dingo123dango"
 }
 
-DINGO_VERSION_CONTROL = 'dingo\\dingo.json'
-UPLOAD_FOLDER = 'dingo\\'
+DINGO_VERSION_CONTROL = '/dingo/dingo.json'
+UPLOAD_FOLDER = '/dingo/'
 
 def get_biggest_number_folder(path):
     folders = [f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
@@ -43,8 +42,8 @@ def verify_password(username, password):
 def get_beta_key():
     # Define the URL and parameters
     hasher = hashlib.sha512()
-    if os.path.isfile("C:\\Users\\Matthew\\Documents\\GitHub\\coolin-launcher\\dingo\\betakey"):
-        with open('dingo\\betakey', 'rb') as file:
+    if os.path.isfile("/dingo/betakey"):
+        with open('/dingo/betakey', 'rb') as file:
             while True:
                 chunk = file.read(4096)  # Read file in chunks
                 if not chunk:
@@ -54,10 +53,10 @@ def get_beta_key():
     else:
         return "0"
 
-BASE_DIRECTORY = "C:\\Users\\Matthew\\Documents\\GitHub\\coolin-launcher\\dingo"
+BASE_DIRECTORY = "/dingo"
 BETA_KEY = get_beta_key()
 print(BETA_KEY, file=sys.stdout)
-BETA_KEY_FILE = "C:\\Users\\Matthew\\Documents\\GitHub\\coolin-launcher\\dingo\\betakey"
+BETA_KEY_FILE = "/dingo/betakey"
 
 @app.route('/get_latest_ver')
 def get_latest_ver():
@@ -179,7 +178,7 @@ def admin():
             folder_path = os.path.join(UPLOAD_FOLDER, f"{selected_key}/{selected_branch}/{key_number}")
             os.makedirs(folder_path, exist_ok=True)
 
-            filename = secure_filename(file.filename)
+            filename = secure_filename(file.filename).lower()
             file_path = os.path.join(folder_path, filename)
             try:
                 file.save(file_path)
