@@ -25,14 +25,15 @@ def get_biggest_number_folder(path):
     return max(folders, key=int)
 
 
-"""
+
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["20 per day", "6 per hour"],
+    default_limits=["55 per day", "15 per hour"],
     storage_uri="memory://",
 )
-"""
+
+
 @auth.verify_password
 def verify_password(username, password):
     if username in users and users[username] == password:
@@ -107,8 +108,19 @@ def check_beta_key_validity():
     else:
         return "Invalid"
         
+@app.errorhandler(429)
+def slowdown():
+    return "You've hit the request limit.", 429
+
+
+@app.route('/slow')
+@limiter.limit("1 per hour")
+def slow():
+    return ":("
+     
 @app.route('/admin', methods=['GET', 'POST'])
 @auth.login_required  # This requires authentication to access the route
+@limiter.limit(["100 per day", "20 per hour"])
 def admin():
     # Load JSON data
     with open(DINGO_VERSION_CONTROL, 'r') as f:
