@@ -230,11 +230,12 @@ downloading_assets = pygame.image.load(resource_path("assets/download-assets.png
 background_width, background_height = background_image.get_width(), background_image.get_height()
 
 # Other UI Elements
-game_titles = ["Coolin", "Coolin 16", "Coolin 3"]
+game_titles = ["Coolin", "Coolin 16", "Coolin 3", "Extras"]
 banner_images = [
     pygame.image.load("assets/banners/og-drop.png").convert_alpha(),
     pygame.image.load("assets/banners/16-drop.png").convert_alpha(),
-    pygame.image.load("assets/banners/3-drop.png").convert_alpha()
+    pygame.image.load("assets/banners/3-drop.png").convert_alpha(),
+    pygame.image.load("assets/banners/extras-drop.png").convert_alpha()
 ]
 center_image = pygame.image.load(resource_path("assets/select.png")).convert_alpha()
 center_image_width, center_image_height = center_image.get_width(), center_image.get_height() - 50
@@ -408,6 +409,8 @@ color_active = BLUE
 color = color_inactive
 active = False
 
+extras = False
+
 if os.path.isfile(resource_path("betakey")):
     beta_key = open('betakey', 'r').read()
 else:
@@ -419,117 +422,128 @@ def save_beta_key(key):
 
 # Main loop
 while running:
-    screen.fill(WHITE)
-    screen.blit(background_image, (0, 0))
+    while extras == False:
+        screen.fill(WHITE)
+        screen.blit(background_image, (0, 0))
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.KEYDOWN and settings_menu_open == False:
-            if event.key == pygame.K_RIGHT:
-                pygame.mixer.Sound.play(select)
-                if selected_game < num_games - 1:
-                    selected_game += 1
-                    target_offset -= SCREEN_WIDTH // 2
-            elif event.key == pygame.K_LEFT:
-                pygame.mixer.Sound.play(select)
-                if selected_game > 0:
-                    selected_game -= 1
-                    target_offset += SCREEN_WIDTH // 2  
-                
-            elif event.key == pygame.K_RETURN:
-                print(f"Launching: {game_titles[selected_game]}...")
-                if game_titles[selected_game] == "Coolin 16":
-                    pygame.mixer.Sound.play(play)
-                    sleep(0.3)
-                    subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/16")])
-                    running = False
-                elif game_titles[selected_game] == "Coolin":
-                    pygame.mixer.Sound.play(play)
-                    sleep(0.3)
-                    subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/coolin/Coolin.wad")])
-                    running = False
-                elif game_titles[selected_game] == "Coolin 3":
-                    pygame.mixer.Sound.play(error)
-                    alert(text="Coolin 3 is still in development", title="Coolin 3", button="Ok")
-                    break
-                    subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/3")])
-                    running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if settings_button.collidepoint(event.pos):
-                settings_menu_open = not settings_menu_open
-            if settings_menu_open:
-                if input_box.collidepoint(event.pos):
-                    active = True
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN and settings_menu_open == False:
+                if event.key == pygame.K_RIGHT:
+                    pygame.mixer.Sound.play(select)
+                    if selected_game < num_games - 1:
+                        selected_game += 1
+                        target_offset -= SCREEN_WIDTH // 2
+                elif event.key == pygame.K_LEFT:
+                    pygame.mixer.Sound.play(select)
+                    if selected_game > 0:
+                        selected_game -= 1
+                        target_offset += SCREEN_WIDTH // 2  
+                    
+                elif event.key == pygame.K_RETURN:
+                    print(f"Launching: {game_titles[selected_game]}...")
+                    if game_titles[selected_game] == "Coolin 16":
+                        pygame.mixer.Sound.play(play)
+                        sleep(0.3)
+                        subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/16")])
+                        running = False
+                    elif game_titles[selected_game] == "Coolin":
+                        pygame.mixer.Sound.play(play)
+                        sleep(0.3)
+                        subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/coolin/Coolin.wad")])
+                        running = False
+                    elif game_titles[selected_game] == "Coolin 3":
+                        pygame.mixer.Sound.play(error)
+                        alert(text="Coolin 3 is still in development", title="Coolin 3", button="Ok")
+                        break
+                        subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/3")])
+                        running = False
+                    elif game_titles[selected_game] == "Extras":
+                        extras = True
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if settings_button.collidepoint(event.pos):
+                    settings_menu_open = not settings_menu_open
+                if settings_menu_open:
+                    if input_box.collidepoint(event.pos):
+                        active = True
+                    else:
+                        active = False
+                    color = color_active if active else color_inactive
+                    # Close menu if "X" button is clicked
+                    close_button = pygame.Rect(500, 150, 30, 30)
+                    if close_button.collidepoint(event.pos):
+                        settings_menu_open = False
+            elif event.type == pygame.KEYDOWN and active:
+                if event.key == pygame.K_RETURN:
+                    save_beta_key(beta_key)
+                    pygame.mixer.Sound.play(success)
+                    if os.path.isfile(resource_path("betakey")):
+                        beta_key = open('betakey', 'r').read()
+                        alert(text="If the beta key is valid, you must restart in order to download the beta.", title="Success", button="Ok")
+                    else:
+                        beta_key = ""
+
+                elif event.key == pygame.K_BACKSPACE:
+                    beta_key = beta_key[:-1]
                 else:
-                    active = False
-                color = color_active if active else color_inactive
-                # Close menu if "X" button is clicked
-                close_button = pygame.Rect(500, 150, 30, 30)
-                if close_button.collidepoint(event.pos):
-                    settings_menu_open = False
-        elif event.type == pygame.KEYDOWN and active:
-            if event.key == pygame.K_RETURN:
-                save_beta_key(beta_key)
-                pygame.mixer.Sound.play(success)
-                if os.path.isfile(resource_path("betakey")):
-                    beta_key = open('betakey', 'r').read()
-                    alert(text="If the beta key is valid, you must restart in order to download the beta.", title="Success", button="Ok")
-                else:
-                    beta_key = ""
+                    beta_key += event.unicode
 
-            elif event.key == pygame.K_BACKSPACE:
-                beta_key = beta_key[:-1]
-            else:
-                beta_key += event.unicode
+        if current_offset != target_offset:
+            diff = target_offset - current_offset
+            current_offset += transition_speed if diff > 0 else -transition_speed
+            if abs(diff) < transition_speed:
+                current_offset = target_offset
 
-    if current_offset != target_offset:
-        diff = target_offset - current_offset
-        current_offset += transition_speed if diff > 0 else -transition_speed
-        if abs(diff) < transition_speed:
-            current_offset = target_offset
+        # Draw UI Elements
+        center_image_x = (SCREEN_WIDTH - center_image_width) // 2
+        center_image_y = (SCREEN_HEIGHT // 2 - banner_height // 2) - center_image_height - 10
+        screen.blit(center_image, (center_image_x, center_image_y))
+        screen.blit(credit_text, (10, SCREEN_HEIGHT - credit_text.get_height() - 10))
+        
+        if VERSION == "beta": screen.blit(beta_text, (10, SCREEN_HEIGHT - credit_text.get_height() - 25))
 
-    # Draw UI Elements
-    center_image_x = (SCREEN_WIDTH - center_image_width) // 2
-    center_image_y = (SCREEN_HEIGHT // 2 - banner_height // 2) - center_image_height - 10
-    screen.blit(center_image, (center_image_x, center_image_y))
-    screen.blit(credit_text, (10, SCREEN_HEIGHT - credit_text.get_height() - 10))
-    
-    if VERSION == "beta": screen.blit(beta_text, (10, SCREEN_HEIGHT - credit_text.get_height() - 25))
+        # Draw banners
+        for i, banner in enumerate(banner_images):
+            banner_x = (SCREEN_WIDTH // 2 - banner_width // 2) + (i * SCREEN_WIDTH // 2) + current_offset
+            banner_y = SCREEN_HEIGHT // 2 - banner_height // 2
+            screen.blit(banner, (banner_x, banner_y))
+        
+        # Draw Settings Button
+        pygame.draw.rect(screen, GRAY, settings_button)
+        settings_font = pygame.font.Font('assets/font/Pixeled.ttf', 9)
+        screen.blit(settings_font.render("Settings", True, BLACK), (settings_button.x + 2, settings_button.y))
 
-    # Draw banners
-    for i, banner in enumerate(banner_images):
-        banner_x = (SCREEN_WIDTH // 2 - banner_width // 2) + (i * SCREEN_WIDTH // 2) + current_offset
-        banner_y = SCREEN_HEIGHT // 2 - banner_height // 2
-        screen.blit(banner, (banner_x, banner_y))
-    
-    # Draw Settings Button
-    pygame.draw.rect(screen, GRAY, settings_button)
-    settings_font = pygame.font.Font('assets/font/Pixeled.ttf', 9)
-    screen.blit(settings_font.render("Settings", True, BLACK), (settings_button.x + 2, settings_button.y))
+        # Draw Settings Menu
+        if settings_menu_open:
+            pygame.draw.rect(screen, WHITE, (250, 150, 300, 200))
+            pygame.draw.rect(screen, BLACK, (250, 150, 300, 200), 2)
+            screen.blit(large_font.render("Enter Beta Key", True, BLACK), (300, 170))
 
-    # Draw Settings Menu
-    if settings_menu_open:
-        pygame.draw.rect(screen, WHITE, (250, 150, 300, 200))
-        pygame.draw.rect(screen, BLACK, (250, 150, 300, 200), 2)
-        screen.blit(large_font.render("Enter Beta Key", True, BLACK), (300, 170))
+            screen.blit(font.render(f"Branch: {VERSION}", True, BLACK), (300, 300))
 
-        screen.blit(font.render(f"Branch: {VERSION}", True, BLACK), (300, 300))
+            # Draw input box
+            txt_surface = large_font.render(beta_key, True, BLACK)
+            width = max(200, txt_surface.get_width() + 10)
+            input_box.w = width
+            screen.blit(txt_surface, (input_box.x + 5, input_box.y + 5))
+            pygame.draw.rect(screen, color, input_box, 2)
 
-        # Draw input box
-        txt_surface = large_font.render(beta_key, True, BLACK)
-        width = max(200, txt_surface.get_width() + 10)
-        input_box.w = width
-        screen.blit(txt_surface, (input_box.x + 5, input_box.y + 5))
-        pygame.draw.rect(screen, color, input_box, 2)
+            # Draw "X" button
+            close_button = pygame.Rect(500, 150, 30, 30)
+            pygame.draw.rect(screen, BLACK, close_button)
+            screen.blit(large_font.render("X", True, WHITE), (507, 155))
 
-        # Draw "X" button
-        close_button = pygame.Rect(500, 150, 30, 30)
-        pygame.draw.rect(screen, BLACK, close_button)
-        screen.blit(large_font.render("X", True, WHITE), (507, 155))
-
-    pygame.display.flip()
-    clock.tick(60)
+        pygame.display.flip()
+        clock.tick(60)
+    while extras == True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                extras = False
+        screen.fill(BLACK)
+        pygame.display.flip()
+        clock.tick(60)
 
 pygame.quit()
 sys.exit()
