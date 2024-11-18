@@ -120,7 +120,7 @@ def slow():
      
 @app.route('/admin', methods=['GET', 'POST'])
 @auth.login_required  # This requires authentication to access the route
-@limiter.limit(["100 per day", "20 per hour"])
+@limiter.limit("20 per hour")
 def admin():
     # Load JSON data
     with open(DINGO_VERSION_CONTROL, 'r') as f:
