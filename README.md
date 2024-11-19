@@ -12,8 +12,8 @@ Built by: ![yagmire](https://img.shields.io/badge/yagmire!-8A2BE2)
 
 ## Authors
 
-- [@yagmire](https://www.github.com/yagmire) (Launcher code)
-- [@dynamicdingo987](https://instagram.com/@dynamicdingo987) (Assets & Games)
+- [@yagmire (GitHub)](https://www.github.com/yagmire) (Launcher code)
+- [@dynamicdingo987 (Instagram)](https://instagram.com/dynamicdingo987) (Assets & Games)
 
 ## License
 
