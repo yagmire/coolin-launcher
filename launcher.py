@@ -461,6 +461,7 @@ while running:
                         running = False
                     elif game_titles[selected_game] == "Extras":
                         extras = True
+                        running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if settings_button.collidepoint(event.pos):
                     settings_menu_open = not settings_menu_open
@@ -536,14 +537,15 @@ while running:
 
         pygame.display.flip()
         clock.tick(60)
-    while extras == True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-                extras = False
-        screen.fill(BLACK)
-        pygame.display.flip()
-        clock.tick(60)
+        
+while extras == True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+            extras = False
+    screen.fill(BLACK)
+    pygame.display.flip()
+    clock.tick(60)
 
 pygame.quit()
 sys.exit()
