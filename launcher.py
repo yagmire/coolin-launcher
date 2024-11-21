@@ -461,10 +461,15 @@ while running:
                     subprocess.Popen([GZDOOM_EXEC, resource_path("coolin/3")])
                     running = False
                 elif game_titles[selected_game] == "Extras":
+                    extras = True
+                    running = False
+            if event.key == pygame.K_RETURN and pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                if game_titles[selected_game] == "Extras":
                     gummibar.set_volume(0.5)
                     pygame.mixer.Sound.play(gummibar)
                     extras = True
                     running = False
+            
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if settings_button.collidepoint(event.pos):
                 settings_menu_open = not settings_menu_open
@@ -540,15 +545,32 @@ while running:
 
     pygame.display.flip()
     clock.tick(60)
-        
+
+
+ivfs = []
+for ivf in glob.glob(resource_path("coolin\\16\\intro.pk3\\vids\\*.ivf")):
+    ivfs.append(ivf)
+
+lasty = 20
+got_listerine = False
+def cutscene_render():
+    global lasty, got_listerine
+    screen.blit(large_font.render("Cutscenes", True, WHITE), (0,0))
+    for scene in ivfs:
+        screen.blit(large_font.render(os.path.basename(scene), True, WHITE), (20, lasty))
+        lasty += 20
+    lasty = 20
+    got_listerine = True
+
 while extras == True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             extras = False
     screen.fill(BLACK)
+    cutscene_render()
     pygame.display.flip()
-    clock.tick(60)
+    clock.tick(30)
 
 pygame.quit()
 sys.exit()
