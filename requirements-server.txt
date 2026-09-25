@@ -3,4 +3,4 @@ Flask
 Flask-Limiter
 flask_httpauth
 python-dotenv
-gunicorn
+gunicorn>=26  # the Dockerfile uses --no-control-socket (added in 26)

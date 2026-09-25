@@ -62,9 +62,9 @@ docker build -t coolin-server .
 docker run -d --name coolin -p 2665:2665 --env-file .env -v /dingo:/dingo --restart unless-stopped coolin-server
 ```
 
-- The image runs the server with gunicorn on Python 3.13, as a non-root user (uid `10001`).
+- The image runs the server with gunicorn on Python 3.13. It starts as root only long enough to give `/dingo` to its app user (uid `10001`), then runs the server as that user.
 - Put your `.env` settings in with `--env-file` or `-e`. `COOLIN_DATA_DIR` is already `/dingo` inside the container, so leave it out of the file.
-- Everything the server stores is in `/dingo`. Mount a folder or named volume there to keep it between upgrades. For a host folder, let the container write to it: `sudo chown -R 10001 /dingo`.
+- Everything the server stores is in `/dingo`. Mount a folder or named volume there to keep it between upgrades. Root-owned host folders are fine: their ownership is fixed on startup.
 - Behind nginx, Caddy or Cloudflare, set `COOLIN_TRUST_PROXY=1`.
 - `GET /healthz` is used by the container health check and isn't rate limited.
 
