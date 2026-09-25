@@ -35,35 +35,113 @@ document.querySelectorAll(".dropzone").forEach((zone) => {
 });
 
 // Big uploads: show a progress bar, then display the page the server redirects to.
+// Forms with data-chunked send their file in pieces first, so any size gets through Cloudflare.
+function sendRequest(method, url, body, headers = {}, onProgress = null) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(method, url);
+        Object.entries(headers).forEach(([name, value]) => xhr.setRequestHeader(name, value));
+        if (onProgress) xhr.upload.addEventListener("progress", (e) => onProgress(e.loaded));
+        xhr.addEventListener("load", () => {
+            let data = {};
+            try { data = JSON.parse(xhr.responseText); } catch (e) { /* HTML page */ }
+            resolve({ status: xhr.status, data, xhr });
+        });
+        xhr.addEventListener("error", () => reject(new Error("network")));
+        xhr.addEventListener("timeout", () => reject(new Error("timeout")));
+        xhr.send(body);
+    });
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function uploadInChunks(form, file, report) {
+    const csrf = { "X-CSRF-Token": form.querySelector("input[name=csrf]").value };
+    const start = await sendRequest("POST", form.dataset.chunked,
+        JSON.stringify({ filename: file.name, size: file.size }), { ...csrf, "Content-Type": "application/json" });
+    if (start.status !== 200) throw new Error(start.data.error || `The server refused the upload (${start.status}).`);
+    const url = `${form.dataset.chunked}/${start.data.id}`;
+    const chunkSize = start.data.chunk_size;
+
+    let offset = 0;
+    let failures = 0;
+    while (offset < file.size) {
+        const piece = file.slice(offset, offset + chunkSize);
+        let response = null;
+        try {
+            response = await sendRequest("POST", `${url}?offset=${offset}`, piece,
+                { ...csrf, "Content-Type": "application/octet-stream" }, (loaded) => report(offset + loaded, file.size));
+        } catch (e) { /* dropped connection: retry below */ }
+        if (response && (response.status === 200 || response.status === 409)) {
+            // 409 means the server has a different amount than we thought; carry on from there.
+            offset = response.data.received;
+            failures = 0;
+            continue;
+        }
+        if (response && response.status < 500 && ![408, 429].includes(response.status)) {
+            throw new Error(response.data.error || `Upload failed (${response.status}).`);
+        }
+        if (++failures > 6) throw new Error("Upload failed after several retries. Check your connection and try again.");
+        report(offset, file.size, `Connection problem, retrying (${failures}/6)…`);
+        await sleep(2000 * failures);
+        try {
+            const status = await sendRequest("GET", url, null);
+            if (status.status === 200) offset = status.data.received;
+            else if (status.status === 404) throw new Error(status.data.error || "The upload expired. Start it again.");
+        } catch (e) {
+            if (e.message !== "network" && e.message !== "timeout") throw e;
+        }
+    }
+    return { id: start.data.id, cancel: () => sendRequest("DELETE", url, null, csrf).catch(() => {}) };
+}
+
 document.querySelectorAll(".upload-form").forEach((form) => {
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
         if (event.defaultPrevented) return;
         event.preventDefault();
         const progress = form.querySelector(".progress");
         const bar = progress.querySelector(".progress-bar");
         const text = progress.querySelector(".progress-text");
-        form.querySelectorAll("button").forEach((b) => (b.disabled = true));
+        const buttons = form.querySelectorAll("button");
+        buttons.forEach((b) => (b.disabled = true));
         progress.hidden = false;
-
-        const xhr = new XMLHttpRequest();
-        xhr.open(form.method, form.action);
-        xhr.upload.addEventListener("progress", (e) => {
-            if (!e.lengthComputable) return;
-            const pct = Math.round((e.loaded / e.total) * 100);
+        const report = (loaded, total, message) => {
+            const pct = total ? Math.min(100, Math.round((loaded / total) * 100)) : 100;
             bar.style.width = `${pct}%`;
-            text.textContent = pct < 100 ? `Uploading… ${pct}%` : "Processing…";
-        });
-        xhr.addEventListener("load", () => {
+            text.textContent = message || (pct < 100 ? `Uploading… ${pct}%` : "Processing…");
+        };
+        const fail = (message) => {
+            window.onbeforeunload = null;
+            text.textContent = message;
+            buttons.forEach((b) => (b.disabled = false));
+        };
+        const showResult = (xhr) => {
+            window.onbeforeunload = null;
             document.open();
             document.write(xhr.responseText);
             document.close();
             history.replaceState(null, "", xhr.responseURL);
-        });
-        xhr.addEventListener("error", () => {
-            text.textContent = "Upload failed. Check your connection and try again.";
-            form.querySelectorAll("button").forEach((b) => (b.disabled = false));
-        });
-        xhr.send(new FormData(form));
+        };
+
+        const body = new FormData(form);
+        const fileInput = form.querySelector("input[type=file]");
+        const file = fileInput && fileInput.files[0];
+        window.onbeforeunload = () => "The upload is still running.";
+        try {
+            if (form.dataset.chunked && file) {
+                const upload = await uploadInChunks(form, file, report);
+                body.delete(fileInput.name);
+                body.append("upload_id", upload.id);
+                report(file.size, file.size, "Processing…");
+                const done = await sendRequest("POST", form.action, body).catch(() => null);
+                if (!done) { upload.cancel(); return fail("Upload failed while finishing. Try again."); }
+                return showResult(done.xhr);
+            }
+            const done = await sendRequest("POST", form.action, body, {}, (loaded) => report(loaded, file ? file.size : 0));
+            showResult(done.xhr);
+        } catch (error) {
+            fail(error.message === "network" ? "Upload failed. Check your connection and try again." : error.message);
+        }
     });
 });
 

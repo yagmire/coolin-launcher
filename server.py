@@ -40,6 +40,12 @@ ASSET_DIR = os.path.join(LAUNCHER_DIR, "assets")
 CATALOG_FILE = os.path.join(BASE_DIRECTORY, "catalog.json")
 BETA_KEY_FILE = os.path.join(BASE_DIRECTORY, "betakey")
 SECRET_FILE = os.path.join(LAUNCHER_DIR, "secret")
+# Build zips being uploaded in pieces. Same disk as the builds, so finished uploads are moved, not copied.
+UPLOAD_DIR = os.path.join(LAUNCHER_DIR, "uploads")
+# Pieces stay well under Cloudflare's 100 MB request limit, and small enough to finish within its 100 s timeout.
+UPLOAD_CHUNK_SIZE = 16 * 1024 * 1024
+UPLOAD_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+STALE_UPLOAD_SECONDS = 24 * 60 * 60
 # Assets shipped with the launcher, used to preview the built-in defaults.
 BUNDLED_ASSET_DIR = os.path.join(SERVER_DIR, "assets")
 
@@ -527,8 +533,10 @@ def csrf_token():
 
 @app.before_request
 def check_csrf():
-    if request.method == "POST" and request.path.startswith("/admin"):
-        if not hmac.compare_digest(request.form.get("csrf", ""), csrf_token()):
+    if request.method not in ("GET", "HEAD", "OPTIONS") and request.path.startswith("/admin"):
+        # Upload pieces send the token as a header, since their body is raw file data.
+        token = request.headers.get("X-CSRF-Token") or request.form.get("csrf", "")
+        if not hmac.compare_digest(token, csrf_token()):
             abort(400, "The form expired. Reload the page and try again.")
 
 
@@ -870,16 +878,98 @@ def admin_game_banner(gid):
     return redirect(url_for("admin_game", gid=gid))
 
 
+# Chunked uploads -------------------------------------------------------------
+# The browser sends big zips in pieces (so they fit through Cloudflare), then submits
+# the normal build form with the upload's ID instead of the file.
+
+def upload_paths(upload_id):
+    if not UPLOAD_ID_RE.match(upload_id or ""):
+        abort(404, "Unknown upload")
+    return os.path.join(UPLOAD_DIR, f"{upload_id}.part"), os.path.join(UPLOAD_DIR, f"{upload_id}.json")
+
+
+def clean_stale_uploads():
+    if not os.path.isdir(UPLOAD_DIR):
+        return
+    cutoff = time.time() - STALE_UPLOAD_SECONDS
+    for name in os.listdir(UPLOAD_DIR):
+        path = os.path.join(UPLOAD_DIR, name)
+        if os.path.getmtime(path) < cutoff:
+            os.remove(path)
+
+
+def upload_error(message, status):
+    return jsonify(error=message), status
+
+
+@admin_route("/admin/uploads", methods=["POST"])
+def admin_upload_start():
+    info = request.get_json(silent=True) or {}
+    filename = str(info.get("filename", ""))
+    size = info.get("size")
+    if not filename.lower().endswith(".zip"):
+        return upload_error("Builds must be .zip files.", 400)
+    if not isinstance(size, int) or size <= 0:
+        return upload_error("That file is empty.", 400)
+    clean_stale_uploads()
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    upload_id = secrets.token_hex(16)
+    part, meta = upload_paths(upload_id)
+    open(part, "wb").close()
+    write_json(meta, {"filename": filename, "size": size, "started_at": now_iso()})
+    return jsonify(id=upload_id, chunk_size=UPLOAD_CHUNK_SIZE, received=0)
+
+
+@admin_route("/admin/uploads/<upload_id>", methods=["GET", "POST", "DELETE"])
+def admin_upload_chunk(upload_id):
+    part, meta_path = upload_paths(upload_id)
+    meta = read_json(meta_path, None)
+    if meta is None or not os.path.isfile(part):
+        return upload_error("This upload expired. Start it again.", 404)
+    received = os.path.getsize(part)
+
+    if request.method == "DELETE":
+        os.remove(part)
+        os.remove(meta_path)
+        return jsonify(ok=True)
+    if request.method == "GET":
+        return jsonify(received=received, size=meta["size"])
+
+    # Pieces must arrive in order. After a dropped connection the browser asks how much
+    # arrived and continues from there, so a mismatch just reports the right offset.
+    offset = request.args.get("offset", type=int)
+    if offset != received:
+        return jsonify(received=received, size=meta["size"]), 409
+    length = request.content_length or 0
+    if length > UPLOAD_CHUNK_SIZE * 2 or received + length > meta["size"]:
+        return upload_error("Upload piece is too big.", 413)
+    with open(part, "ab") as f:
+        shutil.copyfileobj(request.stream, f, 1024 * 1024)
+    return jsonify(received=os.path.getsize(part), size=meta["size"])
+
+
 @admin_route("/admin/games/<gid>/builds", methods=["POST"])
 def admin_upload_build(gid):
     game = get_game_or_404(gid)
     branch = request.form.get("branch")
     file = request.files.get("file")
+    upload_id = request.form.get("upload_id")
+    upload = None
+    if upload_id:
+        part, meta_path = upload_paths(upload_id)
+        upload = read_json(meta_path, None)
+        if upload is None or not os.path.isfile(part):
+            flash("The upload expired before it finished. Please upload the file again.", "error")
+            return redirect(url_for("admin_game", gid=gid))
+        if os.path.getsize(part) != upload["size"]:
+            flash("The upload didn't finish. Please upload the file again.", "error")
+            return redirect(url_for("admin_game", gid=gid))
+    filename = upload["filename"] if upload else (file.filename if file else "")
     if branch not in BRANCHES:
         flash("Pick a branch to upload to.", "error")
-    elif not file or not file.filename:
+    elif not filename:
         flash("Choose a .zip file to upload.", "error")
-    elif not file.filename.lower().endswith(".zip"):
+    elif not filename.lower().endswith(".zip"):
         flash("Builds must be .zip files.", "error")
     else:
         previous = active_version(game, branch)
@@ -888,7 +978,11 @@ def admin_upload_build(gid):
         folder = version_dir(gid, branch, version)
         os.makedirs(folder, exist_ok=True)
         path = os.path.join(folder, f"{gid}.zip")
-        file.save(path)
+        if upload:
+            os.replace(part, path)
+            os.remove(meta_path)
+        else:
+            file.save(path)
         if not zipfile.is_zipfile(path):
             shutil.rmtree(folder)
             flash("That file isn't a valid zip.", "error")
@@ -896,7 +990,7 @@ def admin_upload_build(gid):
         write_json(os.path.join(folder, "meta.json"), {
             "uploaded_at": now_iso(),
             "notes": request.form.get("notes", "").strip()[:500],
-            "original_filename": secure_filename(file.filename),
+            "original_filename": secure_filename(filename),
             "size": os.path.getsize(path),
             "sha256": file_sha256(path),
         })

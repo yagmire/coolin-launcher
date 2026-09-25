@@ -28,7 +28,8 @@
                     <p class="small"><a href="{{ url_for('admin_help') }}#upload">More help: uploading, beta builds and rollbacks →</a></p>
                 </div>
             </details>
-            <form method="post" action="{{ url_for('admin_upload_build', gid=game.id) }}" enctype="multipart/form-data" class="upload-form">
+            <form method="post" action="{{ url_for('admin_upload_build', gid=game.id) }}" enctype="multipart/form-data" class="upload-form"
+                  data-chunked="{{ url_for('admin_upload_start') }}">
                 {{ csrf() }}
                 <label class="dropzone">
                     <input type="file" name="file" accept=".zip" required>
