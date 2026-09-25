@@ -24,7 +24,7 @@
     <div>
         <h1>Assets</h1>
         <p class="muted">Launchers download anything that changed here the next time they start.
-            Files you haven't uploaded use the copy built into the launcher.</p>
+            Files you haven't uploaded use the server's default copy.</p>
     </div>
 </header>
 
@@ -41,15 +41,15 @@
                 {% if slot.override %}
                     <span class="badge badge-live">Custom · {{ slot.override.size|filesize }}</span>
                 {% elif slot.builtin %}
-                    <span class="badge">Built-in</span>
+                    <span class="badge">Default</span>
                 {% else %}
-                    <span class="badge">Built-in (no preview)</span>
+                    <span class="badge badge-soon" title="Launchers have no copy of this file">Missing: upload one</span>
                 {% endif %}
             </div>
             <div class="slot-actions">
                 {{ replace_form(slot.path, 'Replace' if slot.override else 'Customize') }}
                 {% if slot.override %}
-                <form method="post" action="{{ url_for('admin_asset_delete') }}" data-confirm="Go back to the built-in {{ slot.path }}?">
+                <form method="post" action="{{ url_for('admin_asset_delete') }}" data-confirm="Go back to the default {{ slot.path }}?">
                     {{ csrf() }}<input type="hidden" name="path" value="{{ slot.path }}">
                     <button class="btn btn-small btn-ghost">Reset</button>
                 </form>
@@ -103,7 +103,7 @@
             <div class="file-actions">
                 {{ replace_form(file.path) }}
                 <form method="post" action="{{ url_for('admin_asset_delete') }}"
-                      data-confirm="Delete {{ file.path }}?{% if file.builtin %} Launchers will go back to the built-in version.{% elif file.used_by %} It's still in use: {{ file.used_by|join(', ') }}.{% endif %}">
+                      data-confirm="Delete {{ file.path }}?{% if file.builtin %} Launchers will go back to the default version.{% elif file.used_by %} It's still in use: {{ file.used_by|join(', ') }}.{% endif %}">
                     {{ csrf() }}<input type="hidden" name="path" value="{{ file.path }}">
                     <input type="hidden" name="next" value="{{ url_for('admin_assets') }}">
                     <button class="btn btn-small btn-danger-ghost">Delete</button>
@@ -113,7 +113,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <p class="muted">No custom assets yet. The launcher is using its built-in files.</p>
+    <p class="muted">No custom assets yet. Launchers are using the default files.</p>
     {% endfor %}
 </section>
 {% endblock %}

@@ -13,7 +13,7 @@ WORKDIR /app
 COPY requirements-server.txt .
 RUN pip install -r requirements-server.txt
 
-# Only what the server needs. assets/ lets the admin panel preview the launcher's built-in graphics.
+# Only what the server needs. assets/ holds the default launcher graphics and sounds that every launcher downloads.
 COPY server.py .
 COPY templates/ templates/
 COPY static/ static/

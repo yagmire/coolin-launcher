@@ -43,7 +43,7 @@ pip install -r requirements.txt
 python server.py
 ```
 
-Deploy `server.py` together with `templates/` and `static/`. Keeping `assets/` next to it lets the admin panel preview the launcher's built-in graphics.
+Deploy `server.py` together with `templates/`, `static/` and `assets/`. The launcher ships without any graphics or sounds: on every start it downloads the full set from the server and checks each file for changes. `assets/` holds the defaults; files uploaded on the admin panel's Assets page replace them.
 
 Settings live in a `.env` file next to `server.py` (copy [.env.example](.env.example)). Real environment variables override it.
 

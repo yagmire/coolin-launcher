@@ -11,7 +11,8 @@ TIMEOUT = 15
 # Game types this launcher knows how to start. Anything else in the catalog needs a newer launcher.
 SUPPORTED_TYPES = ("doom", "exe", "java", "flash", "url", "extras")
 
-# Downloaded games and settings live next to the launcher; bundled assets live wherever PyInstaller unpacked them.
+# Everything the launcher downloads lives next to it. It ships with no graphics or sounds:
+# all of them come from the server and are checked for updates on every start.
 APP_DIR = os.path.dirname(sys.executable if getattr(sys, "frozen", False) else os.path.abspath(__file__))
 BUNDLE_DIR = getattr(sys, "_MEIPASS", APP_DIR)
 GAMES_DIR = os.path.join(APP_DIR, "coolin")
@@ -39,13 +40,9 @@ RED = (255, 0, 0)
 
 # OS RESOURCES
 
-def resource_path(relative_path):
-    return os.path.join(BUNDLE_DIR, relative_path)
-
 def asset_path(relative_path):
-    """Server-provided copy of an asset if there is one, otherwise the one bundled with the launcher."""
-    cached = os.path.join(ASSET_CACHE_DIR, relative_path)
-    return cached if os.path.isfile(cached) else resource_path(os.path.join("assets", relative_path))
+    """Where a downloaded asset lives. It may not exist yet on the very first start."""
+    return os.path.join(ASSET_CACHE_DIR, *relative_path.split("/"))
 
 def file_sha256(path):
     hasher = hashlib.sha256()
@@ -123,27 +120,23 @@ def extract_zip(zip_path, dest, task, label):
             task.update(label, (i + 1) / max(len(members), 1))
 
 def sync_assets(task):
-    """Downloads launcher assets that changed on the server. Returns True if anything changed."""
-    task.update("Checking for new graphics & sounds...", None)
+    """Makes the local assets match the server's exactly: downloads every file that's missing
+    or different (checked by hash) and deletes anything the server no longer has.
+    Returns True if anything changed."""
+    task.update("Checking graphics & sounds...", None)
     response = requests.get(f"{SERVER}api/assets/manifest", timeout=TIMEOUT)
     response.raise_for_status()
     files = {p: f for p, f in response.json().get("files", {}).items() if ASSET_PATH_RE.match(p) and ".." not in p}
 
     changed = False
     to_download = []
-    for path, info in files.items():
-        cached = os.path.join(ASSET_CACHE_DIR, path)
-        bundled = resource_path(os.path.join("assets", path))
-        if os.path.isfile(cached) and file_sha256(cached) == info["sha256"]:
-            continue
-        if os.path.isfile(bundled) and file_sha256(bundled) == info["sha256"]:
-            if os.path.isfile(cached):
-                os.remove(cached)
-                changed = True
-            continue
-        to_download.append(path)
+    for i, (path, info) in enumerate(files.items()):
+        task.update("Checking graphics & sounds...", (i + 1) / max(len(files), 1))
+        cached = asset_path(path)
+        if not (os.path.isfile(cached) and file_sha256(cached) == info["sha256"]):
+            to_download.append(path)
 
-    # Anything removed on the server goes back to the bundled version.
+    # Remove files the server doesn't have (and leftover partial downloads).
     if os.path.isdir(ASSET_CACHE_DIR):
         for root, _dirs, names in os.walk(ASSET_CACHE_DIR):
             for name in names:
@@ -153,12 +146,15 @@ def sync_assets(task):
                     changed = True
 
     for i, path in enumerate(to_download):
-        dest = os.path.join(ASSET_CACHE_DIR, *path.split("/"))
+        dest = asset_path(path)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        download_file(f"{SERVER}api/assets/{path}", dest, task, f"Updating graphics & sounds ({i + 1}/{len(to_download)})",
+        download_file(f"{SERVER}api/assets/{path}", dest, task, f"Downloading graphics & sounds ({i + 1}/{len(to_download)})",
                       expected_sha256=files[path]["sha256"])
         changed = True
     return changed
+
+def assets_missing():
+    return not os.path.isdir(ASSET_CACHE_DIR) or not any(files for _root, _dirs, files in os.walk(ASSET_CACHE_DIR))
 
 # GAMES
 
@@ -395,22 +391,27 @@ def draw_progress(task, background):
 
 # ASSETS
 
+# Missing assets (before the first download, or removed on the server) load as None and are skipped.
+
 def load_image(relative_path, alpha=True):
-    for path in (asset_path(relative_path), resource_path(os.path.join("assets", relative_path))):
-        try:
-            image = pygame.image.load(path)
-            return image.convert_alpha() if alpha else image.convert()
-        except (pygame.error, FileNotFoundError):
-            continue
-    return None
+    try:
+        image = pygame.image.load(asset_path(relative_path))
+        return image.convert_alpha() if alpha else image.convert()
+    except (pygame.error, OSError):
+        return None
 
 def load_sound(relative_path):
-    for path in (asset_path(relative_path), resource_path(os.path.join("assets", relative_path))):
-        try:
-            return pygame.mixer.Sound(path)
-        except (pygame.error, FileNotFoundError):
-            continue
-    return None
+    try:
+        return pygame.mixer.Sound(asset_path(relative_path))
+    except (pygame.error, OSError):
+        return None
+
+def load_font(relative_path, size):
+    try:
+        return pygame.font.Font(asset_path(relative_path), size)
+    except (pygame.error, OSError):
+        # pygame's built-in font renders smaller, so scale it up to roughly match.
+        return pygame.font.Font(None, int(size * 2))
 
 def play(sound):
     if sound:
@@ -421,9 +422,8 @@ def load_assets():
     global background_image, downloading_assets, intro, center_image, holder_banner
     global play_sound, error_sound, select_sound, success_sound, gummibar
 
-    font_path = asset_path("font/Pixeled.ttf")
-    font = pygame.font.Font(font_path, 12)
-    settings_font = pygame.font.Font(font_path, 9)
+    font = load_font("font/Pixeled.ttf", 12)
+    settings_font = load_font("font/Pixeled.ttf", 9)
     credit_text = font.render("Launcher by yagmire, Games and Graphics by DynamicDingo", True, BLACK)
     beta_text = font.render("BETA MODE", True, RED)
     offline_text = font.render("OFFLINE", True, RED)
@@ -452,7 +452,7 @@ def start_music():
     try:
         pygame.mixer.music.load(asset_path("sounds/sonic.wav"))
         pygame.mixer.music.play(-1)
-    except pygame.error as e:
+    except (pygame.error, OSError) as e:
         print(f"Couldn't play music: {e}")
 
 def placeholder_banner(title):
@@ -612,6 +612,8 @@ else:
     assets = run_task("Loading...", sync_assets)
     if assets.error:
         print(f"Asset sync failed: {assets.error}")
+        if assets_missing():
+            alert(text=f"Couldn't download the launcher's graphics and sounds:\n{assets.error}", title="Error", button="Ok")
     elif assets.result:
         load_assets()
     updates = run_task("Updating games", update_installed_games, downloading_assets)

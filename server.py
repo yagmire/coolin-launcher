@@ -46,7 +46,8 @@ UPLOAD_DIR = os.path.join(LAUNCHER_DIR, "uploads")
 UPLOAD_CHUNK_SIZE = 16 * 1024 * 1024
 UPLOAD_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 STALE_UPLOAD_SECONDS = 24 * 60 * 60
-# Assets shipped with the launcher, used to preview the built-in defaults.
+# Default launcher assets. The launcher ships without assets and downloads all of them from here,
+# with anything uploaded in the admin panel (ASSET_DIR) replacing the default of the same name.
 BUNDLED_ASSET_DIR = os.path.join(SERVER_DIR, "assets")
 
 BRANCHES = ("stable", "beta")
@@ -101,7 +102,7 @@ GAME_TYPES = {
 VISIBILITY = {"public": "Everyone", "beta": "Beta testers only", "hidden": "Hidden"}
 STATUSES = {"available": "Playable", "coming_soon": "Coming soon"}
 
-# Assets the launcher looks for. Anything not uploaded here uses the copy built into the launcher.
+# Assets the launcher uses. Anything not uploaded in the admin panel uses the server's default copy.
 LAUNCHER_SLOTS = [
     ("bg.png", "Main menu background (800x600)"),
     ("intro.png", "First-run intro screen (800x600)"),
@@ -437,26 +438,36 @@ def asset_kind(path):
     return next((kind for kind, exts in ASSET_KINDS.items() if ext in exts), "other")
 
 
-def list_assets():
+def scan_assets(base):
     assets = {}
-    if not os.path.isdir(ASSET_DIR):
+    if not os.path.isdir(base):
         return assets
-    for root, _dirs, files in os.walk(ASSET_DIR):
+    for root, _dirs, files in os.walk(base):
         for name in files:
             full = os.path.join(root, name)
-            rel = os.path.relpath(full, ASSET_DIR).replace(os.sep, "/")
+            rel = os.path.relpath(full, base).replace(os.sep, "/")
             if not clean_asset_path(rel):
                 continue
             stat = os.stat(full)
-            key = (rel, stat.st_mtime, stat.st_size)
+            key = (full, stat.st_mtime, stat.st_size)
             if key not in _asset_hash_cache:
                 _asset_hash_cache[key] = file_sha256(full)
             assets[rel] = {"size": stat.st_size, "sha256": _asset_hash_cache[key], "modified": iso_from_timestamp(stat.st_mtime)}
     return dict(sorted(assets.items()))
 
 
+def list_assets():
+    """Assets uploaded in the admin panel."""
+    return scan_assets(ASSET_DIR)
+
+
+def launcher_assets():
+    """Every asset the launcher downloads: the defaults, with uploads replacing them."""
+    return dict(sorted({**scan_assets(BUNDLED_ASSET_DIR), **scan_assets(ASSET_DIR)}.items()))
+
+
 def asset_manifest():
-    files = {path: {"size": a["size"], "sha256": a["sha256"]} for path, a in list_assets().items()}
+    files = {path: {"size": a["size"], "sha256": a["sha256"]} for path, a in launcher_assets().items()}
     revision = hashlib.sha256("\n".join(f"{p}:{f['sha256']}" for p, f in files.items()).encode()).hexdigest()[:16]
     return {"revision": revision, "files": files}
 
@@ -645,7 +656,9 @@ def api_asset(path):
     path = clean_asset_path(path)
     if not path:
         abort(404)
-    return send_from_directory(ASSET_DIR, path)
+    if os.path.isfile(os.path.join(ASSET_DIR, path)):
+        return send_from_directory(ASSET_DIR, path)
+    return send_from_directory(BUNDLED_ASSET_DIR, path)
 
 
 # Endpoints used by launchers released before the catalog existed.
@@ -1150,7 +1163,7 @@ def admin_asset_delete():
         os.rmdir(folder)
         folder = os.path.dirname(folder)
     if bundled_asset_exists(path):
-        flash(f"Deleted {path}. Launchers go back to the built-in version.", "success")
+        flash(f"Deleted {path}. Launchers go back to the default version.", "success")
     else:
         flash(f"Deleted {path}.", "success")
     return back("admin_assets")
