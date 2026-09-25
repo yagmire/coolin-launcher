@@ -1,0 +1,12 @@
+# Client
+pygame
+pymsgbox
+requests
+python-dotenv
+tqdm
+
+# Server
+Flask
+python-dotenv
+Flask-Limiter
+flask_httpauth

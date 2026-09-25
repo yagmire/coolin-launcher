@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, type_badge, visibility_badge, banner_thumb, version_cell %}
+{% block title %}Games{% endblock %}
+{% block content %}
+<header class="page-head">
+    <div>
+        <h1>Games</h1>
+        <p class="muted">Use the arrows to change the order games appear in the launcher.</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('admin_game_new') }}">+ New game</a>
+</header>
+
+<section class="card flush">
+    <table class="table">
+        <thead>
+        <tr><th class="order-col">Order</th><th></th><th>Game</th><th>Launches</th><th>Stable</th><th>Beta</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for row in rows %}
+        {% set game = row.game %}
+        <tr class="{{ 'dim' if game.visibility == 'hidden' }}">
+            <td class="order-col">
+                <form method="post" action="{{ url_for('admin_game_move', gid=game.id) }}" class="order-buttons">
+                    {{ csrf() }}
+                    <button class="icon-btn" name="direction" value="up" title="Move up" {{ 'disabled' if loop.first }}>▲</button>
+                    <button class="icon-btn" name="direction" value="down" title="Move down" {{ 'disabled' if loop.last }}>▼</button>
+                </form>
+            </td>
+            <td class="thumb-cell">{{ banner_thumb(game.banner) }}</td>
+            <td>
+                <a class="strong" href="{{ url_for('admin_game', gid=game.id) }}">{{ game.title }}</a>
+                <div class="muted small mono">{{ game.id }}</div>
+                <div class="badges">{{ type_badge(game.type) }}{{ visibility_badge(game) }}</div>
+            </td>
+            <td class="mono small truncate" title="{{ game.target }}">{{ game.target or ('whole folder' if game.type == 'doom' else '—') }}</td>
+            <td>{{ version_cell(game, 'stable', row.builds.stable) }}</td>
+            <td>{{ version_cell(game, 'beta', row.builds.beta) }}</td>
+            <td class="actions"><a class="btn btn-small" href="{{ url_for('admin_game', gid=game.id) }}">Manage</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty">No games yet. <a href="{{ url_for('admin_game_new') }}">Add the first one.</a></td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

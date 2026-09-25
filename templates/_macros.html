@@ -1,0 +1,101 @@
+{% macro csrf() %}<input type="hidden" name="csrf" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro type_badge(type) %}<span class="badge badge-{{ type }}">{{ GAME_TYPES[type].label if type in GAME_TYPES else type }}</span>{% endmacro %}
+
+{% macro visibility_badge(game) -%}
+{%- if game.status == 'coming_soon' %}<span class="badge badge-soon">Coming soon</span>{% endif -%}
+{%- if game.visibility != 'public' %}<span class="badge badge-{{ game.visibility }}">{{ VISIBILITY[game.visibility] }}</span>{% endif -%}
+{%- endmacro %}
+
+{% macro banner_thumb(path, size='sm') -%}
+{% set url = asset_preview_url(path) if path else None %}
+{% if url %}<img class="thumb thumb-{{ size }}" src="{{ url }}" alt="" loading="lazy">
+{% else %}<div class="thumb thumb-{{ size }} thumb-missing">No banner</div>{% endif %}
+{%- endmacro %}
+
+{% macro version_cell(game, branch, version) -%}
+{%- if not GAME_TYPES.get(game.type, {}).get('build') %}<span class="muted">—</span>
+{%- elif version is none %}<span class="muted">none</span>
+{%- else %}v{{ version }}{% if game.pinned[branch] == version %} <span class="pin" title="Pinned: new uploads won't go live automatically">pinned</span>{% endif %}{% endif -%}
+{%- endmacro %}
+
+{# Settings form shared by the "new game" and "edit game" pages. #}
+{% macro game_fields(game, banners, new=false) %}
+<div class="form-grid">
+    <label class="field {{ 'span-2' if not new }}">
+        <span>Title</span>
+        <input name="title" value="{{ game.title }}" required maxlength="60" placeholder="Coolin 4">
+    </label>
+    {% if new %}
+    <label class="field">
+        <span>ID</span>
+        <input name="id" value="{{ game.id }}" required pattern="[a-z0-9][a-z0-9_\-]{0,31}" placeholder="coolin4">
+        <small>Used in URLs and the install folder. Lowercase letters, numbers, - and _. Can't be changed later.</small>
+    </label>
+    {% endif %}
+    <div class="field span-2">
+        <span>Type</span>
+        <div class="type-picker">
+            {% for key, info in GAME_TYPES.items() %}
+            <label class="type-option">
+                <input type="radio" name="type" value="{{ key }}" {{ 'checked' if game.type == key }}>
+                <span class="type-card">
+                    <strong>{{ info.label }}</strong>
+                    <small>{{ info.hint }}</small>
+                </span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    <label class="field span-2" data-types="doom exe java flash url extras">
+        <span>Launch target</span>
+        <input name="target" value="{{ game.target }}" data-placeholders='{{ TARGET_HINTS|tojson }}'>
+        <small class="target-hint"></small>
+    </label>
+    <label class="field span-2" data-types="doom exe java flash">
+        <span>Launch arguments</span>
+        <input name="args" value="{{ game.args }}" placeholder="--fullscreen">
+        <small>Passed to the game. Use quotes around arguments with spaces.</small>
+    </label>
+    <label class="field" data-types="doom">
+        <span>IWAD <em>(optional)</em></span>
+        <input name="iwad" value="{{ game.iwad }}" placeholder="doom2.wad">
+        <small>Base game data. Leave blank to use GZDoom's default (doom2.wad).</small>
+    </label>
+    <label class="field" data-types="java">
+        <span>Java version</span>
+        <input name="java_version" type="number" min="8" max="99" value="{{ game.java_version }}">
+        <small>Downloaded automatically if the zip doesn't include a jre/ folder.</small>
+    </label>
+    <label class="field" data-types="java">
+        <span>JVM arguments</span>
+        <input name="jvm_args" value="{{ game.jvm_args }}" placeholder="-Xmx2G">
+    </label>
+    <label class="field">
+        <span>Who can see it</span>
+        <select name="visibility">
+            {% for key, label in VISIBILITY.items() %}<option value="{{ key }}" {{ 'selected' if game.visibility == key }}>{{ label }}</option>{% endfor %}
+        </select>
+    </label>
+    <label class="field">
+        <span>Status</span>
+        <select name="status">
+            {% for key, label in STATUSES.items() %}<option value="{{ key }}" {{ 'selected' if game.status == key }}>{{ label }}</option>{% endfor %}
+        </select>
+    </label>
+    <label class="field span-2">
+        <span>Message</span>
+        <input name="message" value="{{ game.message }}" maxlength="200" placeholder="Coolin 4 is still in development">
+        <small>Shown when someone tries to play a game that's coming soon.</small>
+    </label>
+    <label class="field span-2">
+        <span>Banner</span>
+        <select name="banner">
+            <option value="">Default placeholder banner</option>
+            {% for path in banners %}<option value="{{ path }}" {{ 'selected' if game.banner == path }}>{{ path }}</option>{% endfor %}
+            {% if game.banner and game.banner not in banners %}<option value="{{ game.banner }}" selected>{{ game.banner }} (missing)</option>{% endif %}
+        </select>
+        <small>Pick an existing banner, or upload a new one{% if new %} after creating the game{% else %} below{% endif %}.</small>
+    </label>
+</div>
+{% endmacro %}

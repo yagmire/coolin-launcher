@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}Beta & login{% endblock %}
+{% block content %}
+<header class="page-head">
+    <div><h1>Beta &amp; login</h1></div>
+</header>
+
+<div class="columns">
+    <section class="card" id="beta">
+        <h2>Beta key</h2>
+        <p class="muted small">Testers type this key into the launcher's settings to get beta builds and beta-only games.
+            Changing it removes everyone from the beta until they enter the new key.</p>
+        <form method="post" action="{{ url_for('admin_beta_key') }}" class="stack"
+              data-confirm="Change the beta key? Everyone in the beta will be moved back to stable until they enter the new key.">
+            {{ csrf() }}
+            <div class="input-row">
+                <input name="betakey" id="betakey" value="{{ beta_key or '' }}" required minlength="4" autocomplete="off" class="mono">
+                <button type="button" class="btn" data-generate="betakey">Generate</button>
+            </div>
+            <button class="btn btn-primary">Save beta key</button>
+        </form>
+        {% if beta_key is not none %}
+        <form method="post" action="{{ url_for('admin_beta_key') }}" data-confirm="Turn off the beta? Everyone goes back to stable.">
+            {{ csrf() }}<input type="hidden" name="action" value="disable">
+            <button class="btn btn-danger-ghost">Turn off beta</button>
+        </form>
+        {% else %}
+        <p class="small muted">The beta is off: no key is set.</p>
+        {% endif %}
+    </section>
+
+    <section class="card" id="login">
+        <h2>Admin login</h2>
+        <p class="muted small">You're signed in as <strong class="mono">{{ username }}</strong>.</p>
+        <p class="small">The username and password come from the server's <span class="mono">.env</span> file
+            (<span class="mono">COOLIN_ADMIN_USER</span> and <span class="mono">COOLIN_ADMIN_PASSWORD</span>).
+            Edit it and restart the server to change them.</p>
+    </section>
+</div>
+{% endblock %}

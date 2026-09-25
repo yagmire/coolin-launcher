@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, type_badge, visibility_badge, banner_thumb, game_fields %}
+{% from "_help.html" import guide_for, zip_steps %}
+{% block title %}{{ game.title }}{% endblock %}
+{% block content %}
+{% set has_builds = GAME_TYPES.get(game.type, {}).get('build') %}
+<header class="page-head">
+    <div>
+        <a class="crumb" href="{{ url_for('admin_games') }}">← Games</a>
+        <h1>{{ game.title }} <span class="muted mono small">{{ game.id }}</span></h1>
+        <div class="badges">{{ type_badge(game.type) }}{{ visibility_badge(game) }}</div>
+    </div>
+</header>
+
+<div class="game-layout">
+    <div class="game-main">
+        {% if has_builds %}
+        <section class="card" id="builds">
+            <h2>Builds</h2>
+            <details class="guide-box" {{ 'open' if not branches.stable.builds and not branches.beta.builds }}>
+                <summary>How to package a {{ GAME_TYPES[game.type].label }} for upload</summary>
+                <div class="guide">
+                    {{ guide_for(game.type, game.target) }}
+                    <details class="guide-sub">
+                        <summary>How do I make a zip?</summary>
+                        {{ zip_steps() }}
+                    </details>
+                    <p class="small"><a href="{{ url_for('admin_help') }}#upload">More help: uploading, beta builds and rollbacks →</a></p>
+                </div>
+            </details>
+            <form method="post" action="{{ url_for('admin_upload_build', gid=game.id) }}" enctype="multipart/form-data" class="upload-form">
+                {{ csrf() }}
+                <label class="dropzone">
+                    <input type="file" name="file" accept=".zip" required>
+                    <strong>Drop a .zip here</strong> or click to choose
+                    <span class="dropzone-file muted"></span>
+                </label>
+                <div class="upload-options">
+                    <div class="segmented">
+                        <label><input type="radio" name="branch" value="stable" checked><span>Stable</span></label>
+                        <label><input type="radio" name="branch" value="beta"><span>Beta</span></label>
+                    </div>
+                    <input name="notes" placeholder="What changed? (optional)" maxlength="500">
+                    <label class="check"><input type="checkbox" name="go_live" checked> Make it live right away</label>
+                    <button class="btn btn-primary">Upload</button>
+                </div>
+                <div class="progress" hidden><div class="progress-bar"></div><span class="progress-text"></span></div>
+            </form>
+
+            {% for branch in BRANCHES %}
+            {% set info = branches[branch] %}
+            <div class="branch">
+                <div class="branch-head">
+                    <h3><span class="badge badge-branch-{{ branch }}">{{ branch }}</span></h3>
+                    {% if info.active is none %}
+                        <span class="muted small">
+                        {% if branch == 'beta' %}No beta builds. Beta testers get the stable build.
+                        {% else %}No builds. Players can't install this game yet.{% endif %}
+                        </span>
+                    {% elif info.pinned is not none %}
+                        <span class="small">Pinned to <strong>v{{ info.active }}</strong>. New uploads won't go live until you choose them.</span>
+                    {% else %}
+                        <span class="small muted">Follows the newest build.</span>
+                    {% endif %}
+                </div>
+                {% if info.warning %}<div class="flash flash-warning">{{ info.warning }}</div>{% endif %}
+                {% if info.builds %}
+                <div class="table-wrap"><table class="table builds">
+                    <thead><tr><th>Version</th><th>Uploaded</th><th>Size</th><th>Notes</th><th></th></tr></thead>
+                    <tbody>
+                    {% for build in info.builds %}
+                    <tr class="{{ 'live' if build.version == info.active }}">
+                        <td>
+                            <strong>v{{ build.version }}</strong>
+                            {% if build.version == info.active %}<span class="badge badge-live">live</span>{% endif %}
+                        </td>
+                        <td class="small">{{ build.uploaded_at|when }}</td>
+                        <td class="small">{{ build.size|filesize }}</td>
+                        <td class="small notes" title="{{ build.filename }}">{{ build.notes or '' }}</td>
+                        <td class="actions"><div class="actions-inner">
+                            {% if build.version != info.active %}
+                            <form method="post" action="{{ url_for('admin_pin_build', gid=game.id) }}">
+                                {{ csrf() }}
+                                <input type="hidden" name="branch" value="{{ branch }}">
+                                <input type="hidden" name="version" value="{{ build.version }}">
+                                <button class="btn btn-small" title="Players on {{ branch }} get this build">Make live</button>
+                            </form>
+                            {% elif info.pinned is not none %}
+                            <form method="post" action="{{ url_for('admin_pin_build', gid=game.id) }}">
+                                {{ csrf() }}
+                                <input type="hidden" name="branch" value="{{ branch }}">
+                                <button class="btn btn-small" title="Always serve the newest build">Follow newest</button>
+                            </form>
+                            {% endif %}
+                            {% if branch == 'beta' %}
+                            <form method="post" action="{{ url_for('admin_promote_build', gid=game.id, branch=branch, version=build.version) }}"
+                                  data-confirm="Copy beta v{{ build.version }} to stable and make it live for everyone?">
+                                {{ csrf() }}
+                                <button class="btn btn-small">Promote to stable</button>
+                            </form>
+                            {% endif %}
+                            <a class="btn btn-small btn-ghost" href="{{ url_for('admin_download_build', gid=game.id, branch=branch, version=build.version) }}">Download</a>
+                            <form method="post" action="{{ url_for('admin_delete_build', gid=game.id, branch=branch, version=build.version) }}"
+                                  data-confirm="Delete {{ branch }} v{{ build.version }} permanently?{% if build.version == info.active %} Players will get the next newest build.{% endif %}">
+                                {{ csrf() }}
+                                <button class="btn btn-small btn-danger-ghost">Delete</button>
+                            </form>
+                        </div></td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table></div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <section class="card" id="settings">
+            <h2>Settings</h2>
+            <form method="post" action="{{ url_for('admin_game_settings', gid=game.id) }}" class="game-form">
+                {{ csrf() }}
+                {{ game_fields(game, banners) }}
+                <div class="form-actions"><button class="btn btn-primary">Save settings</button></div>
+            </form>
+        </section>
+    </div>
+
+    <aside class="game-side">
+        <section class="card">
+            <h2>Banner</h2>
+            {{ banner_thumb(game.banner, 'lg') }}
+            <p class="muted small mono">{{ game.banner or 'Default placeholder banner' }}</p>
+            <form method="post" action="{{ url_for('admin_game_banner', gid=game.id) }}" enctype="multipart/form-data" class="stack">
+                {{ csrf() }}
+                <input type="file" name="file" accept="image/*" required>
+                <button class="btn">Upload new banner</button>
+                <small class="muted">359×478 looks best. It's saved as a launcher asset.</small>
+            </form>
+        </section>
+
+        <section class="card danger-zone">
+            <h2>Delete game</h2>
+            <form method="post" action="{{ url_for('admin_game_delete', gid=game.id) }}" class="stack">
+                {{ csrf() }}
+                <p class="small">Removes {{ game.title }} from the launcher. To hide it without deleting, set <em>Who can see it</em> to Hidden instead.</p>
+                <label class="check"><input type="checkbox" name="delete_files"> Also delete all of its builds from the server</label>
+                <input name="confirm" placeholder="Type {{ game.id }} to confirm" autocomplete="off">
+                <button class="btn btn-danger">Delete game</button>
+            </form>
+        </section>
+    </aside>
+</div>
+{% endblock %}

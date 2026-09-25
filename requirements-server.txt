@@ -1,0 +1,6 @@
+# Server only (used by the Dockerfile). The launcher's dependencies are in requirements.txt.
+Flask
+Flask-Limiter
+flask_httpauth
+python-dotenv
+gunicorn

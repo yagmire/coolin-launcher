@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, game_fields %}
+{% block title %}New game{% endblock %}
+{% block content %}
+<header class="page-head">
+    <div>
+        <a class="crumb" href="{{ url_for('admin_games') }}">← Games</a>
+        <h1>New game</h1>
+        <p class="muted">Not sure how to set it up? See the <a href="{{ url_for('admin_help') }}">packaging guides</a>.</p>
+    </div>
+</header>
+
+<form method="post" class="card game-form">
+    {{ csrf() }}
+    {{ game_fields(game, banners, new=true) }}
+    <div class="form-actions">
+        <button class="btn btn-primary">Create game</button>
+        <a class="btn" href="{{ url_for('admin_games') }}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

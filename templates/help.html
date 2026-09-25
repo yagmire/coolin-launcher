@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% from "_help.html" import zip_steps, doom_guide, exe_guide, java_guide, flash_guide %}
+{% block title %}Help{% endblock %}
+{% block content %}
+<header class="page-head">
+    <div>
+        <h1>Help</h1>
+        <p class="muted">How to package, upload and manage games.</p>
+    </div>
+</header>
+
+<nav class="toc card">
+    <a href="#zip">Making a zip</a>
+    <a href="#doom">Doom mods</a>
+    <a href="#exe">Windows programs</a>
+    <a href="#java">Java games</a>
+    <a href="#flash">Flash games</a>
+    <a href="#other">Web links &amp; extras</a>
+    <a href="#upload">Uploading</a>
+    <a href="#builds">Beta, rollbacks &amp; promoting</a>
+    <a href="#assets">Banners &amp; assets</a>
+</nav>
+
+<section class="card guide" id="zip">
+    <h2>Making a zip</h2>
+    <p>Every game that players download is uploaded as a single <span class="mono">.zip</span>. What goes in it depends on the game type (see below), but you make it the same way:</p>
+    {{ zip_steps() }}
+</section>
+
+<section class="card guide" id="doom">
+    <h2>{{ GAME_TYPES.doom.label }}s</h2>
+    {{ doom_guide() }}
+</section>
+
+<section class="card guide" id="exe">
+    <h2>{{ GAME_TYPES.exe.label }}s</h2>
+    {{ exe_guide() }}
+</section>
+
+<section class="card guide" id="java">
+    <h2>{{ GAME_TYPES.java.label }}s</h2>
+    {{ java_guide() }}
+</section>
+
+<section class="card guide" id="flash">
+    <h2>{{ GAME_TYPES.flash.label }}s</h2>
+    {{ flash_guide() }}
+</section>
+
+<section class="card guide" id="other">
+    <h2>Web links &amp; extras</h2>
+    <p>These don't need a zip.</p>
+    <ul class="tips">
+        <li><strong>Web link:</strong> set the launch target to the full URL, e.g. <span class="mono">https://yourname.itch.io/game</span>. Pressing Enter in the launcher opens it in the player's browser.</li>
+        <li><strong>Extras:</strong> the launch target picks which cutscene files to list, relative to the launcher's games folder.
+            <span class="mono">16/intro.pk3/vids/*.ivf</span> lists every <span class="mono">.ivf</span> in Coolin 16's <span class="mono">intro.pk3/vids</span> folder.</li>
+    </ul>
+</section>
+
+<section class="card guide" id="upload">
+    <h2>Uploading</h2>
+    <ol class="steps">
+        <li>Go to <a href="{{ url_for('admin_games') }}">Games</a> and open the game, or <a href="{{ url_for('admin_game_new') }}">create it</a> first (pick the type and fill in the launch target).</li>
+        <li>In <strong>Builds</strong>, drag the zip onto the drop box or click it to choose the file.</li>
+        <li>Pick <strong>Stable</strong> (everyone) or <strong>Beta</strong> (testers with the beta key).</li>
+        <li>Optionally note what changed. It shows in the build list and on the dashboard.</li>
+        <li>Click <strong>Upload</strong> and keep the tab open until the progress bar finishes.</li>
+    </ol>
+    <p>After the upload the server checks that the launch target exists in the zip. If you see a yellow warning, the target doesn't match the zip:
+        fix the <strong>Launch target</strong> in Settings (usually a missing folder name at the start), or re-zip and upload again.</p>
+    <p>Players get the new version the next time they open the launcher (for games they've installed) or when they first play it.</p>
+</section>
+
+<section class="card guide" id="builds">
+    <h2>Beta, rollbacks &amp; promoting</h2>
+    <ul class="tips">
+        <li><strong>Live build:</strong> the one players get, marked <span class="badge badge-live">live</span>. Normally it's the newest upload.</li>
+        <li><strong>Upload without going live:</strong> untick <em>Make it live right away</em>. Players stay on the current build until you click <strong>Make live</strong> on the new one.</li>
+        <li><strong>Roll back:</strong> click <strong>Make live</strong> on an older build. Players are moved back to it the next time they start the launcher.
+            The branch is then <em>pinned</em>: new uploads won't go live automatically until you click <strong>Follow newest</strong> or make the newest build live.</li>
+        <li><strong>Test in beta first:</strong> upload to Beta, let testers try it, then click <strong>Promote to stable</strong> to give that exact build to everyone.</li>
+        <li><strong>No beta build?</strong> Beta testers just get the stable one.</li>
+        <li><strong>Beta-only games:</strong> set <em>Who can see it</em> to <em>Beta testers only</em>. Only people with the beta key see it in the launcher.</li>
+    </ul>
+</section>
+
+<section class="card guide" id="assets">
+    <h2>Banners &amp; assets</h2>
+    <ul class="tips">
+        <li>Banners are <strong>359×478</strong> PNGs. Upload one from the game's page. The launcher shows a placeholder with the game's name until you do.</li>
+        <li>The <a href="{{ url_for('admin_assets') }}">Assets</a> page replaces launcher graphics and sounds: the background, music, sound effects and so on.
+            Use the same size and format as the original. <strong>Reset</strong> goes back to the built-in version.</li>
+        <li>Players get changed assets the next time they open the launcher.</li>
+    </ul>
+</section>
+{% endblock %}

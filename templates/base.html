@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} · Coolin Admin</title>
+    <link rel="icon" href="{{ asset_preview_url('rock.png') or '' }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+<div class="shell">
+    <nav class="sidebar">
+        <a class="brand" href="{{ url_for('admin_dashboard') }}">
+            {% if asset_preview_url('rock.png') %}<img src="{{ asset_preview_url('rock.png') }}" alt="">{% endif %}
+            <span>Coolin Admin</span>
+        </a>
+        <div class="nav-links">
+            <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if page == 'dashboard' }}">Dashboard</a>
+            <a href="{{ url_for('admin_games') }}" class="{{ 'active' if page == 'games' }}">Games</a>
+            <a href="{{ url_for('admin_assets') }}" class="{{ 'active' if page == 'assets' }}">Assets</a>
+            <a href="{{ url_for('admin_access') }}" class="{{ 'active' if page == 'access' }}">Beta &amp; login</a>
+            <a href="{{ url_for('admin_help') }}" class="{{ 'active' if page == 'help' }}">Help</a>
+        </div>
+    </nav>
+    <main class="content">
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% block content %}{% endblock %}
+    </main>
+</div>
+<script src="{{ url_for('static', filename='admin.js') }}"></script>
+</body>
+</html>

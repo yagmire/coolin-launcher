@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_macros.html" import type_badge, visibility_badge, banner_thumb, version_cell %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<header class="page-head">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="muted">Everything the launcher gets from this server.</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('admin_game_new') }}">+ New game</a>
+</header>
+
+<section class="stats">
+    <a class="stat" href="{{ url_for('admin_games') }}"><strong>{{ stats.games }}</strong><span>games ({{ stats.public }} public)</span></a>
+    <a class="stat" href="{{ url_for('admin_games') }}"><strong>{{ stats.builds }}</strong><span>builds stored</span></a>
+    <a class="stat" href="{{ url_for('admin_assets') }}"><strong>{{ stats.assets }}</strong><span>asset overrides</span></a>
+    <div class="stat"><strong>{{ stats.storage|filesize }}</strong><span>disk used</span></div>
+    <a class="stat" href="{{ url_for('admin_access') }}"><strong class="{{ 'ok' if stats.beta_key else 'muted' }}">{{ 'On' if stats.beta_key else 'Off' }}</strong><span>beta access</span></a>
+</section>
+
+{% if warnings %}
+<section class="card">
+    <h2>Needs attention</h2>
+    <ul class="warnings">
+        {% for game, text in warnings %}
+        <li><a href="{{ url_for('admin_game', gid=game.id) }}">{{ game.title }}</a> {{ text }}</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+<div class="columns">
+    <section class="card">
+        <div class="card-head">
+            <h2>Launcher lineup</h2>
+            <a href="{{ url_for('admin_games') }}">Manage</a>
+        </div>
+        <p class="muted small">In the order players scroll through them.</p>
+        <table class="table">
+            <thead><tr><th></th><th>Game</th><th>Stable</th><th>Beta</th></tr></thead>
+            <tbody>
+            {% for row in rows %}
+            <tr class="{{ 'dim' if row.game.visibility == 'hidden' }}">
+                <td class="thumb-cell">{{ banner_thumb(row.game.banner) }}</td>
+                <td>
+                    <a class="strong" href="{{ url_for('admin_game', gid=row.game.id) }}">{{ row.game.title }}</a>
+                    <div class="badges">{{ type_badge(row.game.type) }}{{ visibility_badge(row.game) }}</div>
+                </td>
+                <td>{{ version_cell(row.game, 'stable', row.builds.stable) }}</td>
+                <td>{{ version_cell(row.game, 'beta', row.builds.beta) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="muted">No games yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Recent uploads</h2>
+        {% if recent %}
+        <ul class="timeline">
+            {% for game, build in recent %}
+            <li>
+                <a class="strong" href="{{ url_for('admin_game', gid=game.id) }}">{{ game.title }}</a>
+                <span class="badge badge-branch-{{ build.branch }}">{{ build.branch }} v{{ build.version }}</span>
+                <div class="muted small">{{ build.uploaded_at|when }} · {{ build.size|filesize }}</div>
+                {% if build.notes %}<div class="small">{{ build.notes }}</div>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">No builds uploaded yet.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

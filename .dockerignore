@@ -1,0 +1,29 @@
+# Only server.py, templates/, static/, assets/ and requirements-server.txt are needed.
+.git
+.github
+.claude
+.env
+.env.*
+!.env.example
+**/__pycache__
+*.pyc
+venv/
+.venv/
+
+# Local data (mount a volume at /dingo instead)
+dingo/
+catalog.json
+
+# Launcher files and downloads
+launcher.py
+requirements.txt
+coolin/
+gzdoom/
+runtimes/
+asset_cache/
+betakey
+intro.lock
+*.zip
+
+# Docs and screenshots
+docs/

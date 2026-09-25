@@ -1,0 +1,146 @@
+{# Packaging guides, shared by the Help page and the upload box on each game's page. #}
+
+{% macro zip_steps() %}
+<ol class="steps">
+    <li>Open the folder that holds your game files, so you can see them in the file explorer.</li>
+    <li>Select <strong>everything inside</strong> it (<kbd>Ctrl</kbd>+<kbd>A</kbd>). Don't select the folder itself.</li>
+    <li>Right-click the selection:
+        <ul>
+            <li><strong>Windows 11:</strong> <em>Compress to ZIP file</em></li>
+            <li><strong>Windows 10:</strong> <em>Send to → Compressed (zipped) folder</em></li>
+            <li><strong>Mac:</strong> <em>Compress</em></li>
+        </ul>
+    </li>
+    <li>Give the zip any name. The server renames it.</li>
+</ol>
+<p class="small muted">Selecting the folder itself also works, but then everything sits inside that folder in the zip,
+    and the launch target has to start with the folder's name (for example <span class="mono">MyGame/MyGame.exe</span>).</p>
+{% endmacro %}
+
+{% macro doom_guide(target=none) %}
+<p>Put the mod's WAD or PK3 files at the top of the zip. The launcher runs them in GZDoom and installs GZDoom and <span class="mono">doom2.wad</span> for players who don't have them.</p>
+<div class="tree-pair">
+    <div>
+        <p class="small strong">One file</p>
+<pre class="tree">coolin.zip
+└── Coolin.wad</pre>
+        <p class="small">Launch target: <span class="mono">Coolin.wad</span></p>
+    </div>
+    <div>
+        <p class="small strong">Several files</p>
+<pre class="tree">coolin16.zip
+├── Coolin16.wad
+└── intro.pk3</pre>
+        <p class="small">Launch target: <em>leave blank</em>, which loads the whole folder</p>
+    </div>
+</div>
+<ul class="tips">
+    <li>PK3s can be files or unzipped folders; both work.</li>
+    <li>Every update replaces the whole install, so files you remove from the zip disappear for players too.</li>
+    <li>Only fill in <strong>IWAD</strong> if the mod needs something other than Doom II (e.g. <span class="mono">doom.wad</span>). That file has to be in the zip.</li>
+</ul>
+{% if target is not none %}{{ current_target(target, 'the whole game folder') }}{% endif %}
+{% endmacro %}
+
+{% macro exe_guide(target=none) %}
+<p>Zip the game's whole build folder: the <span class="mono">.exe</span> plus every DLL and data folder next to it.
+    The game starts inside the exe's folder, so relative paths work like they do on your PC.</p>
+<div class="tree-pair">
+    <div>
+        <p class="small strong">Unity</p>
+<pre class="tree">mygame.zip
+├── MyGame.exe
+├── MyGame_Data/
+├── MonoBleedingEdge/
+└── UnityPlayer.dll</pre>
+        <p class="small">Launch target: <span class="mono">MyGame.exe</span></p>
+    </div>
+    <div>
+        <p class="small strong">Godot / GameMaker / others</p>
+<pre class="tree">mygame.zip
+└── MyGame/
+    ├── MyGame.exe
+    └── MyGame.pck</pre>
+        <p class="small">Launch target: <span class="mono">MyGame/MyGame.exe</span></p>
+    </div>
+</div>
+<ul class="tips">
+    <li>Test first: copy the build folder somewhere else on your PC and run it from there. If it works, the zip will too.</li>
+    <li>Updates unzip over the old files, so save files in the game folder are kept. Files you remove from the zip stay on players' PCs.</li>
+    <li>Command-line options go in <strong>Launch arguments</strong>, e.g. <span class="mono">-screen-fullscreen 1</span>.</li>
+    <li>Leave out installers, <span class="mono">.pdb</span> debug files and <span class="mono">*_BurstDebugInformation_DoNotShip</span> folders to keep downloads small.</li>
+</ul>
+{% if target is not none %}{{ current_target(target) }}{% endif %}
+{% endmacro %}
+
+{% macro java_guide(target=none) %}
+<p>Put the <span class="mono">.jar</span> at the top of the zip, with any <span class="mono">lib/</span> folders or resources it loads next to it.</p>
+<div class="tree-pair">
+    <div>
+        <p class="small strong">Let the launcher get Java</p>
+<pre class="tree">blocky.zip
+├── game.jar
+└── lib/</pre>
+        <p class="small">Launch target: <span class="mono">game.jar</span>. Set <strong>Java version</strong> to what the game needs (8, 17, 21…).</p>
+    </div>
+    <div>
+        <p class="small strong">Ship your own Java</p>
+<pre class="tree">blocky.zip
+├── game.jar
+└── jre/
+    └── bin/
+        └── javaw.exe</pre>
+        <p class="small">A <span class="mono">jre/</span> folder in the zip is always used first.</p>
+    </div>
+</div>
+<ul class="tips">
+    <li>The jar has to run with <span class="mono">java -jar game.jar</span>. If double-clicking it on your PC starts the game, it's fine.</li>
+    <li>Memory options like <span class="mono">-Xmx2G</span> go in <strong>JVM arguments</strong>; options for the game itself go in <strong>Launch arguments</strong>.</li>
+    <li>Downloaded Java versions are shared between games, so only the first Java game is a bigger download.</li>
+</ul>
+{% if target is not none %}{{ current_target(target) }}{% endif %}
+{% endmacro %}
+
+{% macro flash_guide(target=none) %}
+<p>Put the <span class="mono">.swf</span> at the top of the zip, with any files it loads (other SWFs, XML, music, images) laid out the way the game expects.
+    The launcher plays it in <strong>Ruffle</strong>, the open-source Flash Player replacement, and installs Ruffle for players automatically.</p>
+<div class="tree-pair">
+    <div>
+        <p class="small strong">Single SWF</p>
+<pre class="tree">mygame.zip
+└── mygame.swf</pre>
+        <p class="small">Launch target: <span class="mono">mygame.swf</span></p>
+    </div>
+    <div>
+        <p class="small strong">SWF that loads other files</p>
+<pre class="tree">mygame.zip
+├── mygame.swf
+├── levels.xml
+└── music/
+    └── theme.mp3</pre>
+        <p class="small">Launch target: <span class="mono">mygame.swf</span>. Relative paths load from the SWF's folder.</p>
+    </div>
+</div>
+<ul class="tips">
+    <li>Test the SWF in the <a href="https://ruffle.rs/demo/" target="_blank" rel="noopener">Ruffle demo</a> first. Older ActionScript 1/2 games work very well; most ActionScript 3 games work, but not all.</li>
+    <li>Useful <strong>Launch arguments</strong>: <span class="mono">--fullscreen</span>, <span class="mono">--no-gui</span> (hides Ruffle's menu bar),
+        <span class="mono">--width 800 --height 600</span>, and <span class="mono">-Pname=value</span> for flashvars.</li>
+    <li>Ruffle keeps save data in its own folder, so updates don't wipe players' progress.</li>
+    <li>Exported as a Flash <em>projector</em> (<span class="mono">.exe</span>)? Use the <strong>Windows program</strong> type instead.</li>
+</ul>
+{% if target is not none %}{{ current_target(target) }}{% endif %}
+{% endmacro %}
+
+{% macro current_target(target, blank='nothing yet') %}
+<p class="current-target small">This game's launch target is
+    {% if target %}<strong class="mono">{{ target }}</strong>{% else %}<strong>{{ blank }}</strong>{% endif %}.
+    {% if not target and blank == 'nothing yet' %}Set it under <a href="#settings">Settings</a>.{% endif %}</p>
+{% endmacro %}
+
+{% macro guide_for(type, target=none) %}
+{% if type == 'doom' %}{{ doom_guide(target) }}
+{% elif type == 'exe' %}{{ exe_guide(target) }}
+{% elif type == 'java' %}{{ java_guide(target) }}
+{% elif type == 'flash' %}{{ flash_guide(target) }}
+{% endif %}
+{% endmacro %}
